@@ -1392,7 +1392,7 @@ def create_activity_heatmap(df_input):
     # Mapear os nomes dos dias (ordem fixa)
     full_df['day_of_week'] = full_df['Data'].dt.weekday
     day_name_map = {0: 'Seg', 1: 'Ter', 2: 'Qua', 3: 'Qui', 4: 'Sex', 5: 'Sáb', 6: 'Dom'}
-    full_df['day_display_name'] = full_df['day     of_week'].map(day_name_map)
+    full_df['day_display_name'] = full_df['day of_week'].map(day_name_map)
     
     # Ordem fixa dos dias para exibição (sempre a mesma)
     day_display_names = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']

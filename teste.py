@@ -549,8 +549,8 @@ def get_compras_worksheet():
             except:
                 # Se a aba não existir, criar uma nova
                 worksheet = spreadsheet.add_worksheet(title=COMPRAS_WORKSHEET_NAME, rows="1000", cols="10")
-                # Adicionar cabeçalhos
-                worksheet.append_row(['Data', 'Produto', 'Preço', 'Fornecedor'])
+                # Adicionar cabeçalhos CORRETOS
+                worksheet.append_row(['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
                 return worksheet
         except SpreadsheetNotFound:
             st.error(f"Planilha com ID '{SPREADSHEET_ID}' não encontrada.")
@@ -559,6 +559,7 @@ def get_compras_worksheet():
             st.error(f"Erro ao acessar a planilha '{COMPRAS_WORKSHEET_NAME}': {e}")
             return None
     return None
+
 
 @st.cache_data
 def read_sales_data():
@@ -596,27 +597,32 @@ def read_compras_data():
         try:
             rows = worksheet.get_all_records()
             if not rows:
-                return pd.DataFrame(columns=['Data', 'Produto', 'Preço', 'Fornecedor'])
+                return pd.DataFrame(columns=['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
 
             df = pd.DataFrame(rows)
             
             # Verificar se as colunas essenciais existem
-            required_columns = ['Data', 'Produto', 'Preço', 'Fornecedor']
+            required_columns = ['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
             missing_columns = [col for col in required_columns if col not in df.columns]
             
             if missing_columns:
                 st.error(f"❌ Colunas ausentes na planilha de compras: {missing_columns}")
                 return pd.DataFrame(columns=required_columns)
             
-            # Converter preço para numérico
-            if 'Preço' in df.columns:
-                df['Preço'] = pd.to_numeric(df['Preço'], errors='coerce').fillna(0)
+            # Converter valores para numérico
+            if 'VALOR' in df.columns:
+                df['VALOR'] = pd.to_numeric(df['VALOR'], errors='coerce').fillna(0)
             else:
-                df['Preço'] = 0
+                df['VALOR'] = 0
+                
+            if 'QUANTIDADE' in df.columns:
+                df['QUANTIDADE'] = pd.to_numeric(df['QUANTIDADE'], errors='coerce').fillna(0)
+            else:
+                df['QUANTIDADE'] = 0
             
             # Processar data
-            if 'Data' in df.columns and not df['Data'].isnull().all():
-                df['Data'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+            if 'DATA' in df.columns and not df['DATA'].isnull().all():
+                df['Data'] = pd.to_datetime(df['DATA'], dayfirst=True, errors='coerce')
                 df.dropna(subset=['Data'], inplace=True)
                 
                 if not df.empty:
@@ -628,8 +634,8 @@ def read_compras_data():
             return df
         except Exception as e:
             st.error(f"Erro ao ler dados da planilha de compras: {e}")
-            return pd.DataFrame(columns=['Data', 'Produto', 'Preço', 'Fornecedor'])
-    return pd.DataFrame(columns=['Data', 'Produto', 'Preço', 'Fornecedor'])
+            return pd.DataFrame(columns=['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
+    return pd.DataFrame(columns=['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
 
 # --- Funções de Manipulação de Dados ---
 def add_data_to_sheet(date, cartao, dinheiro, pix, worksheet_obj):
@@ -663,17 +669,19 @@ def add_compras_to_sheet(date, produtos_list, worksheet_obj):
         success_count = 0
         for produto_data in produtos_list:
             produto = produto_data['produto']
-            preco = float(produto_data['preco']) if produto_data['preco'] else 0.0
+            quantidade = float(produto_data['quantidade']) if produto_data['quantidade'] else 0.0
+            valor = float(produto_data['valor']) if produto_data['valor'] else 0.0
             fornecedor = produto_data['fornecedor']
             
-            new_row = [date, produto, preco, fornecedor]
+            # Nova ordem: DATA, PRODUTO, QUANTIDADE, VALOR, FORNECEDOR
+            new_row = [date, produto, quantidade, valor, fornecedor]
             worksheet_obj.append_row(new_row)
             success_count += 1
         
         st.success(f"✅ {success_count} compra(s) registrada(s) com sucesso!")
         return True
     except ValueError as ve:
-        st.error(f"Erro ao converter preço para número: {ve}")
+        st.error(f"Erro ao converter valores para número: {ve}")
         return False
     except Exception as e:
         st.error(f"Erro ao adicionar compras na planilha: {e}")
@@ -2121,73 +2129,83 @@ def main():
         subtab1, subtab2, subtab3 = st.tabs(["📝 Registrar Compras", "📋 Lista de Compras", "📊 Análise de Compras"])
         
         with subtab1:
-            st.subheader("📝 Registrar Múltiplas Compras")
+        with subtab1:
+        st.subheader("📝 Registrar Múltiplas Compras")
+        
+        # Data da compra
+        data_compra = st.date_input("📅 Data da Compra", value=datetime.now(), format="DD/MM/YYYY")
+        
+        # Inicializar session state para produtos
+        if 'produtos_compra' not in st.session_state:
+            st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''}]
+        
+        st.markdown("### 🛍️ Lista de Produtos")
+        
+        # Container para os produtos
+        produtos_container = st.container()
+        
+        with produtos_container:
+            total_geral = 0.0
+            produtos_validos = []
             
-            # Data da compra
-            data_compra = st.date_input("📅 Data da Compra", value=datetime.now(), format="DD/MM/YYYY")
-            
-            # Inicializar session state para produtos
-            if 'produtos_compra' not in st.session_state:
-                st.session_state.produtos_compra = [{'produto': '', 'preco': 0.0, 'fornecedor': ''}]
-            
-            st.markdown("### 🛍️ Lista de Produtos")
-            
-            # Container para os produtos
-            produtos_container = st.container()
-            
-            with produtos_container:
-                total_geral = 0.0
-                produtos_validos = []
+            for i, produto_data in enumerate(st.session_state.produtos_compra):
+                st.markdown(f"**Produto {i+1}:**")
                 
-                for i, produto_data in enumerate(st.session_state.produtos_compra):
-                    st.markdown(f"**Produto {i+1}:**")
-                    
-                    col1, col2, col3, col4 = st.columns([3, 2, 3, 1])
-                    
-                    with col1:
-                        produto = st.text_input(
-                            "🍔 Produto/Item",
-                            value=produto_data['produto'],
-                            placeholder="Ex: Hambúrguer, Batata...",
-                            key=f"produto_{i}",
-                            label_visibility="collapsed"
-                        )
-                        st.session_state.produtos_compra[i]['produto'] = produto
-                    
-                    with col2:
-                        preco = st.number_input(
-                            "💰 Preço (R$)",
-                            min_value=0.0,
-                            value=produto_data['preco'],
-                            format="%.2f",
-                            key=f"preco_{i}",
-                            label_visibility="collapsed"
-                        )
-                        st.session_state.produtos_compra[i]['preco'] = preco
-                    
-                    with col3:
-                        fornecedor = st.text_input(
-                            "🏪 Fornecedor",
-                            value=produto_data['fornecedor'],
-                            placeholder="Ex: Atacadão, Makro...",
-                            key=f"fornecedor_{i}",
-                            label_visibility="collapsed"
-                        )
-                        st.session_state.produtos_compra[i]['fornecedor'] = fornecedor
-                    
-                    with col4:
-                        if len(st.session_state.produtos_compra) > 1:
-                            if st.button("🗑️", key=f"remove_{i}", help="Remover produto"):
-                                st.session_state.produtos_compra.pop(i)
-                                st.rerun()
-                    
-                    # Validar se o produto está completo
-                    if produto.strip() and fornecedor.strip() and preco > 0:
-                        produtos_validos.append(produto_data)
-                        total_geral += preco
-                    
-                    st.markdown("---")
-            
+                col1, col2, col3, col4, col5 = st.columns([3, 1.5, 1.5, 3, 1])
+                
+                with col1:
+                    produto = st.text_input(
+                        "🍔 Produto/Item",
+                        value=produto_data['produto'],
+                        placeholder="Ex: Hambúrguer, Batata...",
+                        key=f"produto_{i}",
+                        label_visibility="collapsed"
+                    )
+                    st.session_state.produtos_compra[i]['produto'] = produto
+                
+                with col2:
+                    quantidade = st.number_input(
+                        "📦 Quantidade",
+                        min_value=0.0,
+                        value=produto_data['quantidade'],
+                        format="%.2f",
+                        key=f"quantidade_{i}",
+                        label_visibility="collapsed"
+                    )
+                    st.session_state.produtos_compra[i]['quantidade'] = quantidade
+                
+                with col3:
+                    valor = st.number_input(
+                        "💰 Valor (R$)",
+                        min_value=0.0,
+                        value=produto_data['valor'],
+                        format="%.2f",
+                        key=f"valor_{i}",
+                        label_visibility="collapsed"
+                    )
+                    st.session_state.produtos_compra[i]['valor'] = valor
+                
+                with col4:
+                    fornecedor = st.text_input(
+                        "🏪 Fornecedor",
+                        value=produto_data['fornecedor'],
+                        placeholder="Ex: Atacadão, Makro...",
+                        key=f"fornecedor_{i}",
+                        label_visibility="collapsed"
+                    )
+                    st.session_state.produtos_compra[i]['fornecedor'] = fornecedor
+                
+                with col5:
+                    if len(st.session_state.produtos_compra) > 1:
+                        if st.button("🗑️", key=f"remove_{i}", help="Remover produto"):
+                            st.session_state.produtos_compra.pop(i)
+                            st.rerun()
+                
+                # Validar se o produto está completo
+                if produto.strip() and fornecedor.strip() and quantidade > 0 and valor > 0:
+                    produtos_validos.append(produto_data)
+                    total_geral += valor
+                            
             # Botões de ação
             col_btn1, col_btn2 = st.columns([1, 1])
             

@@ -2129,7 +2129,6 @@ def main():
         subtab1, subtab2, subtab3 = st.tabs(["📝 Registrar Compras", "📋 Lista de Compras", "📊 Análise de Compras"])
         
         with subtab1:
-        with subtab1:
         st.subheader("📝 Registrar Múltiplas Compras")
         
         # Data da compra

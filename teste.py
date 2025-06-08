@@ -2264,8 +2264,9 @@ def main():
                 
                 if not df_compras_filtered.empty:
                     # Verificar se as colunas necessárias existem
-                    required_columns = ['Fornecedor', 'Preço', 'DataFormatada']
-                    missing_columns = [col for col in required_columns if col not in df_compras_filtered.columns]
+                    required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
+                    cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
+
                     
                     if missing_columns:
                         st.warning(f"⚠️ Colunas ausentes no DataFrame de compras: {missing_columns}")
@@ -2317,8 +2318,9 @@ def main():
                 
                 if not df_compras_filtered.empty:
                     # Verificar se as colunas necessárias existem para análise
-                    required_columns_analysis = ['Fornecedor', 'Preço', 'Produto']
-                    missing_columns_analysis = [col for col in required_columns_analysis if col not in df_compras_filtered.columns]
+                    required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
+                    cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
+
                     
                     if missing_columns_analysis:
                         st.warning(f"⚠️ Colunas ausentes para análise: {missing_columns_analysis}")
@@ -2326,9 +2328,8 @@ def main():
                     else:
                         # Análise por fornecedor
                         st.markdown("### 🏪 Gastos por Fornecedor")
-                        gastos_fornecedor = df_compras_filtered.groupby('Fornecedor')['Preço'].agg(['sum', 'count']).round(2)
-                        gastos_fornecedor.columns = ['Total_Gasto', 'Qtd_Compras']
-                        gastos_fornecedor = gastos_fornecedor.sort_values('Total_Gasto', ascending=False)
+                        gastos_fornecedor = df_compras_filtered.groupby('FORNECEDOR')['VALOR'].agg(['sum', 'count']).round(2)
+                        produtos_freq = df_compras_filtered['PRODUTO'].value_counts().head(10)
                         
                         # Gráfico de gastos por fornecedor
                         chart_data = gastos_fornecedor.reset_index()
@@ -2388,9 +2389,10 @@ def main():
                         
                         with col_stats1:
                             st.markdown("**💰 Valores:**")
-                            st.write(f"• Maior compra: {format_brl(df_compras_filtered['Preço'].max())}")
-                            st.write(f"• Menor compra: {format_brl(df_compras_filtered['Preço'].min())}")
-                            st.write(f"• Compra média: {format_brl(df_compras_filtered['Preço'].mean())}")
+                            st.write(f"• Maior compra: {format_brl(df_compras_filtered['VALOR'].max())}")
+                            st.write(f"• Menor compra: {format_brl(df_compras_filtered['VALOR'].min())}")
+                            st.write(f"• Compra média: {format_brl(df_compras_filtered['VALOR'].mean())}")
+                            st.write(f"• Total de itens únicos: {df_compras_filtered['PRODUTO'].nunique()}")
                         
                         with col_stats2:
                             st.markdown("**📊 Frequências:**")

@@ -1,0 +1,11 @@
+streamlit
+gspread
+pandas
+altair
+numpy
+google-auth
+google-auth-oauthlib
+google-oauth2-tool
+datetime
+warnings
+time

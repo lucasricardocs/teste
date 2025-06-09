@@ -2416,15 +2416,6 @@ def main():
             
             df_compras = read_compras_data()
             
-            if not df_filtered.empty and 'Total' in df_filtered.columns:
-                # Adicionar o histograma de vendas diárias
-                st.subheader("📊 Histograma de Vendas Diárias por Faixas")
-                daily_histogram = create_daily_sales_histogram(df_filtered, "Distribuição de Vendas por Faixas de Valor")
-                if daily_histogram:
-                    st.altair_chart(daily_histogram, use_container_width=True)
-                else:
-                    st.info("Dados insuficientes para o histograma de vendas diárias.")
-            
             if not df_compras.empty:
                 # Aplicar filtros
                 df_compras_filtered = df_compras.copy()

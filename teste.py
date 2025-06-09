@@ -2157,313 +2157,342 @@ def main():
             """)
 
     # --- TAB5: GESTÃO DE COMPRAS COM MÚLTIPLOS PRODUTOS (CORRIGIDA) ---
-    # --- TAB5: GESTÃO DE COMPRAS CORRIGIDA ---
-    with tab5:
-        st.header("🛒 Gestão de Compras")
-        
-        # Criar sub-tabs para organizar melhor
-        subtab1, subtab2, subtab3 = st.tabs(["📝 Registrar Compras", "📋 Lista de Compras", "📊 Análise de Compras"])
-        
-        with subtab1:
-            st.subheader("📝 Registrar Múltiplas Compras")
-            
-            # Data da compra
-            data_compra = st.date_input("📅 Data da Compra", value=datetime.now(), format="DD/MM/YYYY")
-            
-            # Inicializar session state para produtos (CORRIGIDO)
-            if 'produtos_compra' not in st.session_state:
-                st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''}]
-            
-            st.markdown("### 🛍️ **Lista de Produtos para Compra**")
-            st.markdown("*Preencha os dados de cada produto que você está comprando:*")
-            
-            # Container para os produtos
-            total_geral = 0.0
-            produtos_validos = []
-            
-            for i, produto_data in enumerate(st.session_state.produtos_compra):
-                # Card visual para cada produto
-                st.markdown(f"""
-                <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 10px; margin: 1rem 0; border-left: 4px solid #4c78a8;">
-                    <h4 style="margin: 0; color: #87CEEB;">🛒 Produto {i+1}</h4>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Layout em colunas com labels claros
-                col1, col2 = st.columns([3, 1])
-                
-                with col1:
-                    # Nome do produto
-                    st.markdown("**🍔 Nome do Produto/Item:**")
-                    produto = st.text_input(
-                        "Digite o nome do produto:",
-                        value=produto_data['produto'],
-                        placeholder="Ex: Hambúrguer 120g, Batata Congelada 2kg, Refrigerante Coca-Cola...",
-                        key=f"produto_{i}",
-                        help="Seja específico: inclua marca, peso ou tamanho quando relevante"
-                    )
-                    st.session_state.produtos_compra[i]['produto'] = produto
-                
-                with col2:
-                    # Botão remover (só aparece se tiver mais de 1 produto)
-                    if len(st.session_state.produtos_compra) > 1:
-                        st.markdown("**🗑️ Remover:**")
-                        if st.button("❌ Remover Produto", key=f"remove_{i}", help="Clique para remover este produto da lista"):
-                            st.session_state.produtos_compra.pop(i)
-                            st.rerun()
-                
-                # Segunda linha: Quantidade, Valor e Fornecedor
-                col_qty, col_val, col_forn = st.columns([1.5, 1.5, 3])
-                
-                with col_qty:
-                    st.markdown("**📦 Quantidade:**")
-                    quantidade = st.number_input(
-                        "Quantos itens:",
-                        min_value=0.0,
-                        value=produto_data['quantidade'],
-                        format="%.2f",
-                        key=f"quantidade_{i}",
-                        help="Quantidade comprada (ex: 2.5 para 2,5kg)"
-                    )
-                    st.session_state.produtos_compra[i]['quantidade'] = quantidade
-                
-                with col_val:
-                    st.markdown("**💰 Valor Total (R$):**")
-                    valor = st.number_input(
-                        "Preço pago:",
-                        min_value=0.0,
-                        value=produto_data['valor'],
-                        format="%.2f",
-                        key=f"valor_{i}",
-                        help="Valor total pago por este item"
-                    )
-                    st.session_state.produtos_compra[i]['valor'] = valor
-                
-                with col_forn:
-                    st.markdown("**🏪 Categoria e Fornecedor:**")
-                    
-                    # Selectbox para categoria
-                    categoria_selecionada = st.selectbox(
-                        "Escolha a categoria:",
-                        options=[""] + list(FORNECEDORES_CATEGORIAS.keys()),
-                        index=0 if not produto_data.get('categoria') else list(FORNECEDORES_CATEGORIAS.keys()).index(produto_data['categoria']) + 1 if produto_data.get('categoria') in FORNECEDORES_CATEGORIAS.keys() else 0,
-                        key=f"categoria_{i}",
-                        help="Selecione primeiro a categoria do produto"
-                    )
-                    
-                    # CORREÇÃO: Atualizar categoria no session state
-                    st.session_state.produtos_compra[i]['categoria'] = categoria_selecionada
-                    
-                    # Selectbox para fornecedor baseado na categoria (CORRIGIDO)
-                    if categoria_selecionada:
-                        fornecedores_da_categoria = FORNECEDORES_CATEGORIAS[categoria_selecionada]
-                        
-                        # CORREÇÃO: Verificar se o fornecedor atual ainda é válido para a nova categoria
-                        current_fornecedor = produto_data.get('fornecedor', '')
-                        if current_fornecedor not in fornecedores_da_categoria:
-                            current_fornecedor = ""
-                            st.session_state.produtos_compra[i]['fornecedor'] = ""
-                        
-                        fornecedor_index = 0
-                        if current_fornecedor and current_fornecedor in fornecedores_da_categoria:
-                            fornecedor_index = fornecedores_da_categoria.index(current_fornecedor) + 1
-                        
-                        fornecedor = st.selectbox(
-                            "Escolha o fornecedor:",
-                            options=[""] + fornecedores_da_categoria,
-                            index=fornecedor_index,
-                            key=f"fornecedor_{i}",
-                            help=f"Fornecedores disponíveis para {categoria_selecionada}"
-                        )
-                        st.session_state.produtos_compra[i]['fornecedor'] = fornecedor
-                    else:
-                        st.session_state.produtos_compra[i]['fornecedor'] = ""
-                        st.info("👆 Selecione uma categoria primeiro")
-                
-                # Validar se o produto está completo
-                if (produto.strip() and 
-                    st.session_state.produtos_compra[i]['fornecedor'].strip() and 
-                    quantidade > 0 and valor > 0):
-                    produtos_validos.append({
-                        'produto': produto,
-                        'quantidade': quantidade,
-                        'valor': valor,
-                        'fornecedor': st.session_state.produtos_compra[i]['fornecedor']
-                    })
-                    total_geral += valor
-                    
-                    # Feedback visual de produto válido
-                    st.success(f"✅ Produto válido - Subtotal: {format_brl(valor)}")
-                elif produto.strip() or quantidade > 0 or valor > 0:
-                    # Produto parcialmente preenchido
-                    st.warning("⚠️ Complete todos os campos obrigatórios para este produto")
-            
-            # Separador visual
-            st.markdown("---")
-            
-            # Botões de ação com layout melhorado
-            st.markdown("### ⚙️ **Ações do Formulário**")
-            col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 2])
-            
-            with col_btn1:
-                if st.button("➕ **Adicionar Novo Produto**", use_container_width=True, help="Clique para adicionar mais um produto à lista"):
-                    st.session_state.produtos_compra.append({'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''})
-                    st.rerun()
-            
-            with col_btn2:
-                if st.button("🔄 **Limpar Formulário**", use_container_width=True, help="Remove todos os produtos e reinicia o formulário"):
-                    st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''}]
-                    st.rerun()
-            
-            with col_btn3:
-                # Mostrar quantidade de produtos válidos
-                st.metric("✅ Produtos Válidos", f"{len(produtos_validos)}")
-            
-            # Display do total melhorado
-            if produtos_validos:
-                st.markdown(f"""
-                <div style="text-align: center; padding: 1.5rem; background: linear-gradient(90deg, #54a24b, #4c78a8); border-radius: 15px; color: white; margin: 2rem 0; box-shadow: 0 8px 16px rgba(0,0,0,0.3);">
-                    <div>
-                        <span style="font-size: 2rem; margin-right: 1rem;">🛒</span>
-                        <span style="font-size: 1.8rem; font-weight: bold;">TOTAL DA COMPRA</span>
-                    </div>
-                    <div style="margin-top: 0.5rem;">
-                        <span style="font-size: 2.5rem; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">{format_brl(total_geral)}</span>
-                    </div>
-                    <div style="margin-top: 0.5rem; font-size: 1.2rem; opacity: 0.9;">
-                        {len(produtos_validos)} produto(s) válido(s)
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.info("💡 **Dica:** Preencha pelo menos um produto completo para ver o total da compra")
-            
-            # Botão de registrar compras melhorado
-            if produtos_validos:
-                if st.button("✅ **REGISTRAR TODAS AS COMPRAS**", type="primary", use_container_width=True):
-                    formatted_date = data_compra.strftime("%d/%m/%Y")
-                    compras_worksheet_obj = get_compras_worksheet()
-                    
-                    if compras_worksheet_obj and add_compras_to_sheet(formatted_date, produtos_validos, compras_worksheet_obj):
-                        # Limpar cache e resetar formulário
-                        read_compras_data.clear()
-                        st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''}]
-                        st.balloons()  # Efeito visual de sucesso
-                        time.sleep(1)
-                        st.rerun()
-                    elif not compras_worksheet_obj:
-                        st.error("❌ Falha ao conectar à planilha de compras.")
-            else:
-                st.warning("⚠️ **Atenção:** Você precisa ter pelo menos um produto válido para registrar a compra")
-                st.info("📝 **Produto válido:** Nome + Categoria/Fornecedor + Quantidade > 0 + Valor > 0")
+        # --- TAB5: GESTÃO DE COMPRAS CORRIGIDA ---
+with tab5:
+    st.header("🛒 Gestão de Compras")
     
-        with subtab2:
-            st.subheader("📋 Lista de Compras Registradas")
-            
-            # Carregar dados de compras
-            df_compras = read_compras_data()
-            
-            if not df_compras.empty:
-                # Aplicar filtros de ano e mês se disponíveis
-                df_compras_filtered = df_compras.copy()
-                
-                if selected_anos_filter and 'Ano' in df_compras_filtered.columns:
-                    df_compras_filtered = df_compras_filtered[df_compras_filtered['Ano'].isin(selected_anos_filter)]
-                
-                if selected_meses_filter and 'Mês' in df_compras_filtered.columns:
-                    df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
-                
-                if not df_compras_filtered.empty:
-                    # Verificar se as colunas necessárias existem (CORRIGIDO)
-                    required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
-                    missing_columns = [col for col in required_columns if col not in df_compras_filtered.columns]
-                    
-                    if missing_columns:
-                        st.warning(f"⚠️ Colunas ausentes no DataFrame de compras: {missing_columns}")
-                        st.info("📝 Registre algumas compras primeiro para visualizar as estatísticas.")
-                    else:
-                        # Exibir métricas resumo (CORRIGIDO)
-                        col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
-                        
-                        with col_metrics1:
-                            total_compras = len(df_compras_filtered)
-                            st.metric("🔢 Total de Compras", total_compras)
-                        
-                        with col_metrics2:
-                            valor_total_compras = df_compras_filtered['VALOR'].sum()
-                            st.metric("💰 Valor Total", format_brl(valor_total_compras))
-                        
-                        with col_metrics3:
-                            fornecedores_unicos = df_compras_filtered['FORNECEDOR'].nunique()
-                            st.metric("🏪 Fornecedores", fornecedores_unicos)
-                        
-                        # Tabela de compras (CORRIGIDO)
-                        cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
-                        cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
-                        
-                        if cols_existentes:
-                            df_display = df_compras_filtered.sort_values(by='Data', ascending=False)
-                            st.dataframe(df_display[cols_existentes], use_container_width=True, height=400, hide_index=True)
-                        else:
-                            st.info("Estrutura de dados de compras não está completa.")
-                else:
-                    st.info("📊 Nenhuma compra encontrada para o período selecionado.")
-            else:
-                st.info("📊 Nenhuma compra registrada ainda. Use a aba 'Registrar Compras' para começar.")
+    # Criar sub-tabs para organizar melhor
+    subtab1, subtab2, subtab3 = st.tabs(["📝 Registrar Compras", "📋 Lista de Compras", "📊 Análise de Compras"])
+    
+    with subtab1:
+        st.subheader("📝 Registrar Múltiplas Compras")
         
-        with subtab3:
-            st.subheader("📊 Análise de Compras")
+        # Data da compra
+        data_compra = st.date_input("📅 Data da Compra", value=datetime.now(), format="DD/MM/YYYY")
+        
+        # Inicializar session state para produtos (CORRIGIDO)
+        if 'produtos_compra' not in st.session_state:
+            st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''}]
+        
+        st.markdown("### 🛍️ **Lista de Produtos para Compra**")
+        st.markdown("*Preencha os dados de cada produto que você está comprando:*")
+        
+        # Container para os produtos
+        total_geral = 0.0
+        produtos_validos = []
+        
+        for i, produto_data in enumerate(st.session_state.produtos_compra):
+            # Card visual para cada produto
+            st.markdown(f"""
+            <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 10px; margin: 1rem 0; border-left: 4px solid #4c78a8;">
+                <h4 style="margin: 0; color: #87CEEB;">🛒 Produto {i+1}</h4>
+            </div>
+            """, unsafe_allow_html=True)
             
-            df_compras = read_compras_data()
+            # Layout em colunas com labels claros
+            col1, col2 = st.columns([3, 1])
             
-            if not df_filtered.empty and 'Total' in df_filtered.columns:
-                # Adicionar o histograma de vendas diárias
-                st.subheader("📊 Histograma de Vendas Diárias por Faixas")
-                daily_histogram = create_daily_sales_histogram(df_filtered, "Distribuição de Vendas por Faixas de Valor")
-                if daily_histogram:
-                    st.altair_chart(daily_histogram, use_container_width=True)
-                else:
-                    st.info("Dados insuficientes para o histograma de vendas diárias.")
+            with col1:
+                # Nome do produto
+                st.markdown("**🍔 Nome do Produto/Item:**")
+                produto = st.text_input(
+                    "Digite o nome do produto:",
+                    value=produto_data['produto'],
+                    placeholder="Ex: Hambúrguer 120g, Batata Congelada 2kg, Refrigerante Coca-Cola...",
+                    key=f"produto_{i}",
+                    help="Seja específico: inclua marca, peso ou tamanho quando relevante"
+                )
+                st.session_state.produtos_compra[i]['produto'] = produto
             
-            if not df_compras.empty:
-                # Aplicar filtros
-                df_compras_filtered = df_compras.copy()
+            with col2:
+                # Botão remover (só aparece se tiver mais de 1 produto)
+                if len(st.session_state.produtos_compra) > 1:
+                    st.markdown("**🗑️ Remover:**")
+                    if st.button("❌ Remover Produto", key=f"remove_{i}", help="Clique para remover este produto da lista"):
+                        st.session_state.produtos_compra.pop(i)
+                        st.rerun()
+            
+            # Segunda linha: Quantidade, Valor e Fornecedor
+            col_qty, col_val, col_forn = st.columns([1.5, 1.5, 3])
+            
+            with col_qty:
+                st.markdown("**📦 Quantidade:**")
+                quantidade = st.number_input(
+                    "Quantos itens:",
+                    min_value=0.0,
+                    value=produto_data['quantidade'],
+                    format="%.2f",
+                    key=f"quantidade_{i}",
+                    help="Quantidade comprada (ex: 2.5 para 2,5kg)"
+                )
+                st.session_state.produtos_compra[i]['quantidade'] = quantidade
+            
+            with col_val:
+                st.markdown("**💰 Valor Total (R$):**")
+                valor = st.number_input(
+                    "Preço pago:",
+                    min_value=0.0,
+                    value=produto_data['valor'],
+                    format="%.2f",
+                    key=f"valor_{i}",
+                    help="Valor total pago por este item"
+                )
+                st.session_state.produtos_compra[i]['valor'] = valor
+            
+            with col_forn:
+                st.markdown("**🏪 Categoria e Fornecedor:**")
                 
-                if selected_anos_filter and 'Ano' in df_compras_filtered.columns:
-                    df_compras_filtered = df_compras_filtered[df_compras_filtered['Ano'].isin(selected_anos_filter)]
+                # Selectbox para categoria
+                categoria_selecionada = st.selectbox(
+                    "Escolha a categoria:",
+                    options=[""] + list(FORNECEDORES_CATEGORIAS.keys()),
+                    index=0 if not produto_data.get('categoria') else list(FORNECEDORES_CATEGORIAS.keys()).index(produto_data['categoria']) + 1 if produto_data.get('categoria') in FORNECEDORES_CATEGORIAS.keys() else 0,
+                    key=f"categoria_{i}",
+                    help="Selecione primeiro a categoria do produto"
+                )
                 
-                if selected_meses_filter and 'Mês' in df_compras_filtered.columns:
-                    df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
+                # CORREÇÃO: Atualizar categoria no session state
+                st.session_state.produtos_compra[i]['categoria'] = categoria_selecionada
                 
-                if not df_compras_filtered.empty:
-                    # Verificar se as colunas necessárias existem para análise (CORRIGIDO)
-                    required_columns_analysis = ['FORNECEDOR', 'VALOR', 'PRODUTO']
-                    missing_columns_analysis = [col for col in required_columns_analysis if col not in df_compras_filtered.columns]
+                # Selectbox para fornecedor baseado na categoria (CORRIGIDO)
+                if categoria_selecionada:
+                    fornecedores_da_categoria = FORNECEDORES_CATEGORIAS[categoria_selecionada]
                     
-                    if missing_columns_analysis:
-                        st.warning(f"⚠️ Colunas ausentes para análise: {missing_columns_analysis}")
-                        st.info("📝 Registre algumas compras primeiro para visualizar as análises.")
+                    # CORREÇÃO: Verificar se o fornecedor atual ainda é válido para a nova categoria
+                    current_fornecedor = produto_data.get('fornecedor', '')
+                    if current_fornecedor not in fornecedores_da_categoria:
+                        current_fornecedor = ""
+                        st.session_state.produtos_compra[i]['fornecedor'] = ""
+                    
+                    fornecedor_index = 0
+                    if current_fornecedor and current_fornecedor in fornecedores_da_categoria:
+                        fornecedor_index = fornecedores_da_categoria.index(current_fornecedor) + 1
+                    
+                    fornecedor = st.selectbox(
+                        "Escolha o fornecedor:",
+                        options=[""] + fornecedores_da_categoria,
+                        index=fornecedor_index,
+                        key=f"fornecedor_{i}",
+                        help=f"Fornecedores disponíveis para {categoria_selecionada}"
+                    )
+                    st.session_state.produtos_compra[i]['fornecedor'] = fornecedor
+                else:
+                    st.session_state.produtos_compra[i]['fornecedor'] = ""
+                    st.info("👆 Selecione uma categoria primeiro")
+            
+            # Validar se o produto está completo
+            if (produto.strip() and 
+                st.session_state.produtos_compra[i]['fornecedor'].strip() and 
+                quantidade > 0 and valor > 0):
+                produtos_validos.append({
+                    'produto': produto,
+                    'quantidade': quantidade,
+                    'valor': valor,
+                    'fornecedor': st.session_state.produtos_compra[i]['fornecedor']
+                })
+                total_geral += valor
+                
+                # Feedback visual de produto válido
+                st.success(f"✅ Produto válido - Subtotal: {format_brl(valor)}")
+            elif produto.strip() or quantidade > 0 or valor > 0:
+                # Produto parcialmente preenchido
+                st.warning("⚠️ Complete todos os campos obrigatórios para este produto")
+        
+        # Separador visual
+        st.markdown("---")
+        
+        # Botões de ação com layout melhorado
+        st.markdown("### ⚙️ **Ações do Formulário**")
+        col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 2])
+        
+        with col_btn1:
+            if st.button("➕ **Adicionar Novo Produto**", use_container_width=True, help="Clique para adicionar mais um produto à lista"):
+                st.session_state.produtos_compra.append({'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''})
+                st.rerun()
+        
+        with col_btn2:
+            if st.button("🔄 **Limpar Formulário**", use_container_width=True, help="Remove todos os produtos e reinicia o formulário"):
+                st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''}]
+                st.rerun()
+        
+        with col_btn3:
+            # Mostrar quantidade de produtos válidos
+            st.metric("✅ Produtos Válidos", f"{len(produtos_validos)}")
+        
+        # Display do total melhorado
+        if produtos_validos:
+            st.markdown(f"""
+            <div style="text-align: center; padding: 1.5rem; background: linear-gradient(90deg, #54a24b, #4c78a8); border-radius: 15px; color: white; margin: 2rem 0; box-shadow: 0 8px 16px rgba(0,0,0,0.3);">
+                <div>
+                    <span style="font-size: 2rem; margin-right: 1rem;">🛒</span>
+                    <span style="font-size: 1.8rem; font-weight: bold;">TOTAL DA COMPRA</span>
+                </div>
+                <div style="margin-top: 0.5rem;">
+                    <span style="font-size: 2.5rem; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">{format_brl(total_geral)}</span>
+                </div>
+                <div style="margin-top: 0.5rem; font-size: 1.2rem; opacity: 0.9;">
+                    {len(produtos_validos)} produto(s) válido(s)
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.info("💡 **Dica:** Preencha pelo menos um produto completo para ver o total da compra")
+        
+        # Botão de registrar compras melhorado
+        if produtos_validos:
+            if st.button("✅ **REGISTRAR TODAS AS COMPRAS**", type="primary", use_container_width=True):
+                formatted_date = data_compra.strftime("%d/%m/%Y")
+                compras_worksheet_obj = get_compras_worksheet()
+                
+                if compras_worksheet_obj and add_compras_to_sheet(formatted_date, produtos_validos, compras_worksheet_obj):
+                    # Limpar cache e resetar formulário
+                    read_compras_data.clear()
+                    st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''}]
+                    st.balloons()  # Efeito visual de sucesso
+                    time.sleep(1)
+                    st.rerun()
+                elif not compras_worksheet_obj:
+                    st.error("❌ Falha ao conectar à planilha de compras.")
+        else:
+            st.warning("⚠️ **Atenção:** Você precisa ter pelo menos um produto válido para registrar a compra")
+            st.info("📝 **Produto válido:** Nome + Categoria/Fornecedor + Quantidade > 0 + Valor > 0")
+
+    with subtab2:
+        st.subheader("📋 Lista de Compras Registradas")
+        
+        # Carregar dados de compras
+        df_compras = read_compras_data()
+        
+        if not df_compras.empty:
+            # Aplicar filtros de ano e mês se disponíveis
+            df_compras_filtered = df_compras.copy()
+            
+            if selected_anos_filter and 'Ano' in df_compras_filtered.columns:
+                df_compras_filtered = df_compras_filtered[df_compras_filtered['Ano'].isin(selected_anos_filter)]
+            
+            if selected_meses_filter and 'Mês' in df_compras_filtered.columns:
+                df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
+            
+            if not df_compras_filtered.empty:
+                # Verificar se as colunas necessárias existem (CORRIGIDO)
+                required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
+                missing_columns = [col for col in required_columns if col not in df_compras_filtered.columns]
+                
+                if missing_columns:
+                    st.warning(f"⚠️ Colunas ausentes no DataFrame de compras: {missing_columns}")
+                    st.info("📝 Registre algumas compras primeiro para visualizar as estatísticas.")
+                else:
+                    # Exibir métricas resumo (CORRIGIDO)
+                    col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
+                    
+                    with col_metrics1:
+                        total_compras = len(df_compras_filtered)
+                        st.metric("🔢 Total de Compras", total_compras)
+                    
+                    with col_metrics2:
+                        valor_total_compras = df_compras_filtered['VALOR'].sum()
+                        st.metric("💰 Valor Total", format_brl(valor_total_compras))
+                    
+                    with col_metrics3:
+                        fornecedores_unicos = df_compras_filtered['FORNECEDOR'].nunique()
+                        st.metric("🏪 Fornecedores", fornecedores_unicos)
+                    
+                    # Tabela de compras (CORRIGIDO)
+                    cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
+                    cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
+                    
+                    if cols_existentes:
+                        df_display = df_compras_filtered.sort_values(by='Data', ascending=False)
+                        st.dataframe(df_display[cols_existentes], use_container_width=True, height=400, hide_index=True)
                     else:
-                        # Análise por fornecedor (CORRIGIDO)
-                        st.markdown("### 🏪 Gastos por Fornecedor")
-                        gastos_fornecedor = df_compras_filtered.groupby('FORNECEDOR')['VALOR'].agg(['sum', 'count']).round(2)
-                        gastos_fornecedor.columns = ['Total_Gasto', 'Qtd_Compras']
-                        gastos_fornecedor = gastos_fornecedor.sort_values('Total_Gasto', ascending=False)
+                        st.info("Estrutura de dados de compras não está completa.")
+            else:
+                st.info("📊 Nenhuma compra encontrada para o período selecionado.")
+        else:
+            st.info("📊 Nenhuma compra registrada ainda. Use a aba 'Registrar Compras' para começar.")
+    
+    with subtab3:
+        st.subheader("📊 Análise de Compras")
+        
+        df_compras = read_compras_data()
+        
+        if not df_filtered.empty and 'Total' in df_filtered.columns:
+            # Adicionar o histograma de vendas diárias
+            st.subheader("📊 Histograma de Vendas Diárias por Faixas")
+            daily_histogram = create_daily_sales_histogram(df_filtered, "Distribuição de Vendas por Faixas de Valor")
+            if daily_histogram:
+                st.altair_chart(daily_histogram, use_container_width=True)
+            else:
+                st.info("Dados insuficientes para o histograma de vendas diárias.")
+        
+        if not df_compras.empty:
+            # Aplicar filtros
+            df_compras_filtered = df_compras.copy()
+            
+            if selected_anos_filter and 'Ano' in df_compras_filtered.columns:
+                df_compras_filtered = df_compras_filtered[df_compras_filtered['Ano'].isin(selected_anos_filter)]
+            
+            if selected_meses_filter and 'Mês' in df_compras_filtered.columns:
+                df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
+            
+            if not df_compras_filtered.empty:
+                # Verificar se as colunas necessárias existem para análise (CORRIGIDO)
+                required_columns_analysis = ['FORNECEDOR', 'VALOR', 'PRODUTO']
+                missing_columns_analysis = [col for col in required_columns_analysis if col not in df_compras_filtered.columns]
+                
+                if missing_columns_analysis:
+                    st.warning(f"⚠️ Colunas ausentes para análise: {missing_columns_analysis}")
+                    st.info("📝 Registre algumas compras primeiro para visualizar as análises.")
+                else:
+                    # Análise por fornecedor (CORRIGIDO)
+                    st.markdown("### 🏪 Gastos por Fornecedor")
+                    gastos_fornecedor = df_compras_filtered.groupby('FORNECEDOR')['VALOR'].agg(['sum', 'count']).round(2)
+                    gastos_fornecedor.columns = ['Total_Gasto', 'Qtd_Compras']
+                    gastos_fornecedor = gastos_fornecedor.sort_values('Total_Gasto', ascending=False)
+                    
+                    # Gráfico de gastos por fornecedor
+                    chart_data = gastos_fornecedor.reset_index()
+                    
+                    fornecedor_chart = alt.Chart(chart_data).mark_bar(
+                        color=CORES_MODO_ESCURO[3],
+                        cornerRadiusTopLeft=5,
+                        cornerRadiusTopRight=5
+                    ).encode(
+                        x=alt.X('Total_Gasto:Q', title='Valor Total Gasto (R$)'),
+                        y=alt.Y('FORNECEDOR:N', sort='-x', title='Fornecedor'),
+                        tooltip=[
+                            alt.Tooltip('FORNECEDOR:N', title='Fornecedor'),
+                            alt.Tooltip('Total_Gasto:Q', title='Total Gasto (R$)', format=',.2f'),
+                            alt.Tooltip('Qtd_Compras:Q', title='Quantidade de Compras')
+                        ]
+                    ).properties(
+                        height=400
+                    ).configure(
+                        background='transparent'
+                    )
+                    
+                    st.altair_chart(fornecedor_chart, use_container_width=True)
+                    
+                    # Top produtos mais comprados (CORRIGIDO)
+                    st.markdown("### 🍔 Produtos Mais Comprados")
+                    produtos_freq = df_compras_filtered['PRODUTO'].value_counts().head(10)
+                    
+                    if not produtos_freq.empty:
+                        produtos_chart_data = pd.DataFrame({
+                            'Produto': produtos_freq.index,
+                            'Frequencia': produtos_freq.values
+                        })
                         
-                        # Gráfico de gastos por fornecedor
-                        chart_data = gastos_fornecedor.reset_index()
-                        
-                        fornecedor_chart = alt.Chart(chart_data).mark_bar(
-                            color=CORES_MODO_ESCURO[3],
+                        produtos_chart = alt.Chart(produtos_chart_data).mark_bar(
+                            color=CORES_MODO_ESCURO[1],
                             cornerRadiusTopLeft=5,
                             cornerRadiusTopRight=5
                         ).encode(
-                            x=alt.X('Total_Gasto:Q', title='Valor Total Gasto (R$)'),
-                            y=alt.Y('FORNECEDOR:N', sort='-x', title='Fornecedor'),
+                            x=alt.X('Frequencia:Q', title='Número de Compras'),
+                            y=alt.Y('Produto:N', sort='-x', title='Produto'),
                             tooltip=[
-                                alt.Tooltip('FORNECEDOR:N', title='Fornecedor'),
-                                alt.Tooltip('Total_Gasto:Q', title='Total Gasto (R$)', format=',.2f'),
-                                alt.Tooltip('Qtd_Compras:Q', title='Quantidade de Compras')
+                                alt.Tooltip('Produto:N', title='Produto'),
+                                alt.Tooltip('Frequencia:Q', title='Vezes Comprado')
                             ]
                         ).properties(
                             height=400
@@ -2471,67 +2500,38 @@ def main():
                             background='transparent'
                         )
                         
-                        st.altair_chart(fornecedor_chart, use_container_width=True)
-                        
-                        # Top produtos mais comprados (CORRIGIDO)
-                        st.markdown("### 🍔 Produtos Mais Comprados")
-                        produtos_freq = df_compras_filtered['PRODUTO'].value_counts().head(10)
-                        
-                        if not produtos_freq.empty:
-                            produtos_chart_data = pd.DataFrame({
-                                'Produto': produtos_freq.index,
-                                'Frequencia': produtos_freq.values
-                            })
-                            
-                            produtos_chart = alt.Chart(produtos_chart_data).mark_bar(
-                                color=CORES_MODO_ESCURO[1],
-                                cornerRadiusTopLeft=5,
-                                cornerRadiusTopRight=5
-                            ).encode(
-                                x=alt.X('Frequencia:Q', title='Número de Compras'),
-                                y=alt.Y('Produto:N', sort='-x', title='Produto'),
-                                tooltip=[
-                                    alt.Tooltip('Produto:N', title='Produto'),
-                                    alt.Tooltip('Frequencia:Q', title='Vezes Comprado')
-                                ]
-                            ).properties(
-                                height=400
-                            ).configure(
-                                background='transparent'
-                            )
-                            
-                            st.altair_chart(produtos_chart, use_container_width=True)
-                        
-                        # Resumo estatístico (CORRIGIDO)
-                        st.markdown("### 📈 Resumo Estatístico")
-                        col_stats1, col_stats2 = st.columns(2)
-                        
-                        with col_stats1:
-                            st.markdown("**💰 Valores:**")
-                            st.write(f"• Maior compra: {format_brl(df_compras_filtered['VALOR'].max())}")
-                            st.write(f"• Menor compra: {format_brl(df_compras_filtered['VALOR'].min())}")
-                            st.write(f"• Compra média: {format_brl(df_compras_filtered['VALOR'].mean())}")
-                        
-                        with col_stats2:
-                            st.markdown("**📊 Frequências:**")
-                            st.write(f"• Fornecedor mais usado: {gastos_fornecedor.index[0] if not gastos_fornecedor.empty else 'N/A'}")
-                            st.write(f"• Produto mais comprado: {produtos_freq.index[0] if not produtos_freq.empty else 'N/A'}")
-                            st.write(f"• Total de itens únicos: {df_compras_filtered['PRODUTO'].nunique()}")
-                else:
-                    st.info("📊 Nenhuma compra encontrada para análise no período selecionado.")
+                        st.altair_chart(produtos_chart, use_container_width=True)
+                    
+                    # Resumo estatístico (CORRIGIDO)
+                    st.markdown("### 📈 Resumo Estatístico")
+                    col_stats1, col_stats2 = st.columns(2)
+                    
+                    with col_stats1:
+                        st.markdown("**💰 Valores:**")
+                        st.write(f"• Maior compra: {format_brl(df_compras_filtered['VALOR'].max())}")
+                        st.write(f"• Menor compra: {format_brl(df_compras_filtered['VALOR'].min())}")
+                        st.write(f"• Compra média: {format_brl(df_compras_filtered['VALOR'].mean())}")
+                    
+                    with col_stats2:
+                        st.markdown("**📊 Frequências:**")
+                        st.write(f"• Fornecedor mais usado: {gastos_fornecedor.index[0] if not gastos_fornecedor.empty else 'N/A'}")
+                        st.write(f"• Produto mais comprado: {produtos_freq.index[0] if not produtos_freq.empty else 'N/A'}")
+                        st.write(f"• Total de itens únicos: {df_compras_filtered['PRODUTO'].nunique()}")
             else:
-                st.info("📊 Registre algumas compras para visualizar as análises.")
-    
-    # --- Ponto de Entrada da Aplicação ---
-    if __name__ == "__main__":
-        main()
-    
-    # --- RODAPÉ PROFISSIONAL ---
-    st.markdown("""
-    <div class="footer">
-        🍔 <strong>Clips Burger Dashboard</strong> | Desenvolvido com ❤️ usando Streamlit | 
-        📊 Sistema de Gestão Completo | 
-        🔥 <em>Transformando dados em resultados!</em> | 
-        © 2025 - Todos os direitos reservados
-    </div>
-    """, unsafe_allow_html=True)
+                st.info("📊 Nenhuma compra encontrada para análise no período selecionado.")
+        else:
+            st.info("📊 Registre algumas compras para visualizar as análises.")
+
+# --- Ponto de Entrada da Aplicação ---
+if __name__ == "__main__":
+    main()
+
+# --- RODAPÉ PROFISSIONAL ---
+st.markdown("""
+<div class="footer">
+    🍔 <strong>Clips Burger Dashboard</strong> | Desenvolvido com ❤️ usando Streamlit | 
+    📊 Sistema de Gestão Completo | 
+    🔥 <em>Transformando dados em resultados!</em> | 
+    © 2025 - Todos os direitos reservados
+</div>
+""", unsafe_allow_html=True)

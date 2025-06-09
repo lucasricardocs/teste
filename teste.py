@@ -574,8 +574,8 @@ def get_compras_worksheet():
             except:
                 # Se a aba não existir, criar uma nova
                 worksheet = spreadsheet.add_worksheet(title=COMPRAS_WORKSHEET_NAME, rows="1000", cols="10")
-                # Adicionar cabeçalhos CORRETOS
-                worksheet.append_row(['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
+                # Adicionar cabeçalhos CORRETOS (sem maiúsculas)
+                worksheet.append_row(['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
                 return worksheet
         except SpreadsheetNotFound:
             st.error(f"Planilha com ID '{SPREADSHEET_ID}' não encontrada.")
@@ -586,34 +586,53 @@ def get_compras_worksheet():
     return None
 
 @st.cache_data
-def read_sales_data():
-    """Lê todos os registros da planilha de vendas e retorna como DataFrame."""
-    worksheet = get_worksheet()
+def read_compras_data():
+    """Lê todos os registros da planilha de compras e retorna como DataFrame."""
+    worksheet = get_compras_worksheet()
     if worksheet:
         try:
             rows = worksheet.get_all_records()
             if not rows:
-                st.info("A planilha de vendas está vazia.")
-                return pd.DataFrame()
+                return pd.DataFrame(columns=['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
 
             df = pd.DataFrame(rows)
             
-            for col in ['Cartão', 'Dinheiro', 'Pix']:
-                if col in df.columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-                else:
-                    df[col] = 0
+            # Verificar se as colunas essenciais existem (nomes corretos)
+            required_columns = ['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor']
+            missing_columns = [col for col in required_columns if col not in df.columns]
             
-            if 'Data' not in df.columns:
-                df['Data'] = pd.NaT
+            if missing_columns:
+                st.error(f"❌ Colunas ausentes na planilha de compras: {missing_columns}")
+                return pd.DataFrame(columns=required_columns)
+            
+            # Converter valores para numérico
+            if 'Valor' in df.columns:
+                df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
+            else:
+                df['Valor'] = 0
+                
+            if 'Quantidade' in df.columns:
+                df['Quantidade'] = pd.to_numeric(df['Quantidade'], errors='coerce').fillna(0)
+            else:
+                df['Quantidade'] = 0
+            
+            # Processar data
+            if 'Data' in df.columns and not df['Data'].isnull().all():
+                df['DataProcessada'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
+                df.dropna(subset=['DataProcessada'], inplace=True)
+                
+                if not df.empty:
+                    df['DataFormatada'] = df['DataProcessada'].dt.strftime('%d/%m/%Y')
+                    df['Ano'] = df['DataProcessada'].dt.year
+                    df['Mês'] = df['DataProcessada'].dt.month
+                    df['MêsNome'] = df['Mês'].map(lambda x: meses_ordem[int(x)-1] if pd.notna(x) and 1 <= int(x) <= 12 else "Inválido")
 
             return df
         except Exception as e:
-            st.error(f"Erro ao ler dados da planilha: {e}")
-            return pd.DataFrame()
-    return pd.DataFrame()
+            st.error(f"Erro ao ler dados da planilha de compras: {e}")
+            return pd.DataFrame(columns=['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
+    return pd.DataFrame(columns=['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
 
-@st.cache_data
 def read_compras_data():
     """Lê todos os registros da planilha de compras e retorna como DataFrame."""
     worksheet = get_compras_worksheet()
@@ -2302,7 +2321,7 @@ def main():
                 
                 if not df_compras_filtered.empty:
                     # Verificar se as colunas necessárias existem
-                    required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
+                    required_columns = ['Fornecedor', 'Valor', 'DataFormatada']
                     missing_columns = [col for col in required_columns if col not in df_compras_filtered.columns]
                     
                     if missing_columns:
@@ -2317,15 +2336,15 @@ def main():
                             st.metric("🔢 Total de Compras", total_compras)
                         
                         with col_metrics2:
-                            valor_total_compras = df_compras_filtered['VALOR'].sum()
+                            valor_total_compras = df_compras_filtered['Valor'].sum()
                             st.metric("💰 Valor Total", format_brl(valor_total_compras))
                         
                         with col_metrics3:
-                            fornecedores_unicos = df_compras_filtered['FORNECEDOR'].nunique()
+                            fornecedores_unicos = df_compras_filtered['Fornecedor'].nunique()
                             st.metric("🏪 Fornecedores", fornecedores_unicos)
                         
                         # Tabela de compras
-                        cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
+                        cols_to_display = ['DataFormatada', 'Produto', 'Quantidade', 'Valor', 'Fornecedor']
                         cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
                         
                         if cols_existentes:
@@ -2364,7 +2383,7 @@ def main():
                     else:
                         # Análise por fornecedor
                         st.markdown("### 🏪 Gastos por Fornecedor")
-                        gastos_fornecedor = df_compras_filtered.groupby('FORNECEDOR')['VALOR'].agg(['sum', 'count']).round(2)
+                        gastos_fornecedor = df_compras_filtered.groupby('Fornecedor')['Valor'].agg(['sum', 'count'])
                         gastos_fornecedor.columns = ['Total_Gasto', 'Qtd_Compras']
                         gastos_fornecedor = gastos_fornecedor.sort_values('Total_Gasto', ascending=False)
                         
@@ -2393,7 +2412,7 @@ def main():
                         
                         # Top produtos mais comprados
                         st.markdown("### 🍔 Produtos Mais Comprados")
-                        produtos_freq = df_compras_filtered['PRODUTO'].value_counts().head(10)
+                        produtos_freq = df_compras_filtered['Produto'].value_counts().head(10)
                         
                         if not produtos_freq.empty:
                             produtos_chart_data = pd.DataFrame({

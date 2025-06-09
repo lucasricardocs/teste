@@ -36,6 +36,15 @@ CORES_MODO_ESCURO = ['#4c78a8', '#54a24b', '#f58518', '#e45756', '#72b7b2', '#ff
 dias_semana_ordem = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
 meses_ordem = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
+# Lista de fornecedores por categoria
+FORNECEDORES_CATEGORIAS = {
+    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
+    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
+    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
+    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
+    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
+}
+
 # CSS para melhorar a aparência e adicionar background
 def inject_css():
     # Base CSS styles com background cyberpunk
@@ -100,6 +109,22 @@ def inject_css():
         flex-direction: column;
         justify-content: center;
         border: 1px solid rgba(135, 206, 235, 0.3);
+    }
+    
+    /* Rodapé */
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background: linear-gradient(90deg, rgba(76, 120, 168, 0.9), rgba(84, 162, 75, 0.9));
+        color: white;
+        text-align: center;
+        padding: 10px 0;
+        font-size: 14px;
+        z-index: 999;
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
     }
     """
     
@@ -559,7 +584,6 @@ def get_compras_worksheet():
             st.error(f"Erro ao acessar a planilha '{COMPRAS_WORKSHEET_NAME}': {e}")
             return None
     return None
-
 
 @st.cache_data
 def read_sales_data():
@@ -1353,6 +1377,7 @@ def create_activity_heatmap(df_input):
     days_before = first_day_weekday
     
     # Criar range de datas começando na segunda-feira da semana do 01/01
+    # Criar range de datas começando na segunda-feira da semana do 01/01
     start_date = first_day_of_year - pd.Timedelta(days=days_before)
     end_date = datetime(current_year, 12, 31)
     
@@ -1530,6 +1555,15 @@ def create_activity_heatmap(df_input):
 # Função para formatar valores em moeda brasileira
 def format_brl(value):
     return f"R$ {value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+
+# Lista de fornecedores por categoria
+FORNECEDORES_CATEGORIAS = {
+    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
+    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
+    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
+    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
+    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
+}
 
 # --- Interface Principal da Aplicação ---
 def main():
@@ -2129,121 +2163,126 @@ def main():
         subtab1, subtab2, subtab3 = st.tabs(["📝 Registrar Compras", "📋 Lista de Compras", "📊 Análise de Compras"])
         
         with subtab1:
-        st.subheader("📝 Registrar Múltiplas Compras")
-        
-        # Data da compra
-        data_compra = st.date_input("📅 Data da Compra", value=datetime.now(), format="DD/MM/YYYY")
-        
-        # Inicializar session state para produtos
-        if 'produtos_compra' not in st.session_state:
-            st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''}]
-        
-        st.markdown("### 🛍️ Lista de Produtos")
-        
-        # Container para os produtos
-        produtos_container = st.container()
-        
-        with produtos_container:
-            total_geral = 0.0
-            produtos_validos = []
+            st.subheader("📝 Registrar Múltiplas Compras")
             
-            for i, produto_data in enumerate(st.session_state.produtos_compra):
-                st.markdown(f"**Produto {i+1}:**")
-                
-                col1, col2, col3, col4, col5 = st.columns([3, 1.5, 1.5, 3, 1])
-                
-                with col1:
-                    produto = st.text_input(
-                        "🍔 Produto/Item",
-                        value=produto_data['produto'],
-                        placeholder="Ex: Hambúrguer, Batata...",
-                        key=f"produto_{i}",
-                        label_visibility="collapsed"
-                    )
-                    st.session_state.produtos_compra[i]['produto'] = produto
-                
-                with col2:
-                    quantidade = st.number_input(
-                        "📦 Quantidade",
-                        min_value=0.0,
-                        value=produto_data['quantidade'],
-                        format="%.2f",
-                        key=f"quantidade_{i}",
-                        label_visibility="collapsed"
-                    )
-                    st.session_state.produtos_compra[i]['quantidade'] = quantidade
-                
-                with col3:
-                    valor = st.number_input(
-                        "💰 Valor (R$)",
-                        min_value=0.0,
-                        value=produto_data['valor'],
-                        format="%.2f",
-                        key=f"valor_{i}",
-                        label_visibility="collapsed"
-                    )
-                    st.session_state.produtos_compra[i]['valor'] = valor
-                
-                with col4:
-                    fornecedor = st.text_input(
-                        "🏪 Fornecedor",
-                        value=produto_data['fornecedor'],
-                        placeholder="Ex: Atacadão, Makro...",
-                        key=f"fornecedor_{i}",
-                        label_visibility="collapsed"
-                    )
-                    st.session_state.produtos_compra[i]['fornecedor'] = fornecedor
-                
-                with col5:
-                    if len(st.session_state.produtos_compra) > 1:
-                        if st.button("🗑️", key=f"remove_{i}", help="Remover produto"):
-                            st.session_state.produtos_compra.pop(i)
-                            st.rerun()
-                
-                # Validar se o produto está completo
-                if produto.strip() and fornecedor.strip() and quantidade > 0 and valor > 0:
-                    produtos_validos.append(produto_data)
-                    total_geral += valor
-                            
-            # Botões de ação
-            col_btn1, col_btn2 = st.columns([1, 1])
+            # Data da compra
+            data_compra = st.date_input("📅 Data da Compra", value=datetime.now(), format="DD/MM/YYYY")
             
-            with col_btn1:
-                if st.button("➕ Adicionar Produto", use_container_width=True):
-                    st.session_state.produtos_compra.append({'produto': '', 'preco': 0.0, 'fornecedor': ''})
-                    st.rerun()
+            # Inicializar session state para produtos
+            if 'produtos_compra' not in st.session_state:
+                st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''}]
             
-            with col_btn2:
-                if st.button("🔄 Limpar Todos", use_container_width=True):
-                    st.session_state.produtos_compra = [{'produto': '', 'preco': 0.0, 'fornecedor': ''}]
-                    st.rerun()
+            st.markdown("### 🛍️ Lista de Produtos")
             
-            # Display do total
-            st.markdown(f"""
-            <div style="text-align: center; padding: 0.7rem 1rem; background: linear-gradient(90deg, #e45756, #f58518); border-radius: 10px; color: white; margin: 1rem 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2); height: 3rem; display: flex; align-items: center; justify-content: center;">
-                <div>
-                    <span style="font-size: 1.8rem; margin-right: 0.5rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">🛒</span>
-                    <span style="font-size: 2.2rem; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">Total: {format_brl(total_geral)} ({len(produtos_validos)} produtos)</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Container para os produtos
+            produtos_container = st.container()
             
-            # Botão de registrar compras
-            if st.button("✅ Registrar Todas as Compras", type="primary", use_container_width=True):
-                if produtos_validos:
-                    formatted_date = data_compra.strftime("%d/%m/%Y")
-                    compras_worksheet_obj = get_compras_worksheet()
+            with produtos_container:
+                total_geral = 0.0
+                produtos_validos = []
+                
+                for i, produto_data in enumerate(st.session_state.produtos_compra):
+                    st.markdown(f"**Produto {i+1}:**")
                     
-                    if compras_worksheet_obj and add_compras_to_sheet(formatted_date, produtos_validos, compras_worksheet_obj):
-                        # Limpar cache e resetar formulário
-                        read_compras_data.clear()
-                        st.session_state.produtos_compra = [{'produto': '', 'preco': 0.0, 'fornecedor': ''}]
-                        time.sleep(1)
+                    col1, col2, col3, col4, col5 = st.columns([3, 1.5, 1.5, 3, 1])
+                    
+                    with col1:
+                        produto = st.text_input(
+                            "🍔 Produto/Item",
+                            value=produto_data['produto'],
+                            placeholder="Ex: Hambúrguer, Batata...",
+                            key=f"produto_{i}",
+                            label_visibility="collapsed"
+                        )
+                        st.session_state.produtos_compra[i]['produto'] = produto
+                    
+                    with col2:
+                        quantidade = st.number_input(
+                            "📦 Quantidade",
+                            min_value=0.0,
+                            value=produto_data['quantidade'],
+                            format="%.2f",
+                            key=f"quantidade_{i}",
+                            label_visibility="collapsed"
+                        )
+                        st.session_state.produtos_compra[i]['quantidade'] = quantidade
+                    
+                    with col3:
+                        valor = st.number_input(
+                            "💰 Valor (R$)",
+                            min_value=0.0,
+                            value=produto_data['valor'],
+                            format="%.2f",
+                            key=f"valor_{i}",
+                            label_visibility="collapsed"
+                        )
+                        st.session_state.produtos_compra[i]['valor'] = valor
+                    
+                    with col4:
+                        # Lista de fornecedores por categoria
+                        fornecedores_opcoes = []
+                        for categoria, fornecedores in FORNECEDORES_CATEGORIAS.items():
+                            fornecedores_opcoes.extend(fornecedores)
+                        
+                        fornecedor = st.selectbox(
+                            "🏪 Fornecedor",
+                            options=[""] + list(set(fornecedores_opcoes)),
+                            index=0 if produto_data['fornecedor'] == '' else (list(set(fornecedores_opcoes)).index(produto_data['fornecedor']) + 1) if produto_data['fornecedor'] in fornecedores_opcoes else 0,
+                            key=f"fornecedor_{i}",
+                            label_visibility="collapsed"
+                        )
+                        st.session_state.produtos_compra[i]['fornecedor'] = fornecedor
+                    
+                    with col5:
+                        if len(st.session_state.produtos_compra) > 1:
+                            if st.button("🗑️", key=f"remove_{i}", help="Remover produto"):
+                                st.session_state.produtos_compra.pop(i)
+                                st.rerun()
+                    
+                    # Validar se o produto está completo
+                    if produto.strip() and fornecedor.strip() and quantidade > 0 and valor > 0:
+                        produtos_validos.append(produto_data)
+                        total_geral += valor
+                
+                # Botões de ação
+                col_btn1, col_btn2 = st.columns([1, 1])
+                
+                with col_btn1:
+                    if st.button("➕ Adicionar Produto", use_container_width=True):
+                        st.session_state.produtos_compra.append({'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''})
                         st.rerun()
-                    elif not compras_worksheet_obj:
-                        st.error("❌ Falha ao conectar à planilha de compras.")
-                else:
-                    st.warning("⚠️ Adicione pelo menos um produto válido (com produto, fornecedor e preço > 0).")
+                
+                with col_btn2:
+                    if st.button("🔄 Limpar Todos", use_container_width=True):
+                        st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''}]
+                        st.rerun()
+                
+                # Display do total
+                st.markdown(f"""
+                <div style="text-align: center; padding: 0.7rem 1rem; background: linear-gradient(90deg, #e45756, #f58518); border-radius: 10px; color: white; margin: 1rem 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2); height: 3rem; display: flex; align-items: center; justify-content: center;">
+                    <div>
+                        <span style="font-size: 1.8rem; margin-right: 0.5rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">🛒</span>
+                        <span style="font-size: 2.2rem; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">Total: {format_brl(total_geral)} ({len(produtos_validos)} produtos)</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Botão de registrar compras
+                if st.button("✅ Registrar Todas as Compras", type="primary", use_container_width=True):
+                    if produtos_validos:
+                        formatted_date = data_compra.strftime("%d/%m/%Y")
+                        compras_worksheet_obj = get_compras_worksheet()
+                        
+                        if compras_worksheet_obj and add_compras_to_sheet(formatted_date, produtos_validos, compras_worksheet_obj):
+                            # Limpar cache e resetar formulário
+                            read_compras_data.clear()
+                            st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''}]
+                            time.sleep(1)
+                            st.rerun()
+                        elif not compras_worksheet_obj:
+                            st.error("❌ Falha ao conectar à planilha de compras.")
+                    else:
+                        st.warning("⚠️ Adicione pelo menos um produto válido (com produto, fornecedor, quantidade > 0 e valor > 0).")
         
         with subtab2:
             st.subheader("📋 Lista de Compras Registradas")
@@ -2264,8 +2303,7 @@ def main():
                 if not df_compras_filtered.empty:
                     # Verificar se as colunas necessárias existem
                     required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
-                    cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
-
+                    missing_columns = [col for col in required_columns if col not in df_compras_filtered.columns]
                     
                     if missing_columns:
                         st.warning(f"⚠️ Colunas ausentes no DataFrame de compras: {missing_columns}")
@@ -2279,15 +2317,15 @@ def main():
                             st.metric("🔢 Total de Compras", total_compras)
                         
                         with col_metrics2:
-                            valor_total_compras = df_compras_filtered['Preço'].sum()
+                            valor_total_compras = df_compras_filtered['VALOR'].sum()
                             st.metric("💰 Valor Total", format_brl(valor_total_compras))
                         
                         with col_metrics3:
-                            fornecedores_unicos = df_compras_filtered['Fornecedor'].nunique()
+                            fornecedores_unicos = df_compras_filtered['FORNECEDOR'].nunique()
                             st.metric("🏪 Fornecedores", fornecedores_unicos)
                         
                         # Tabela de compras
-                        cols_to_display = ['DataFormatada', 'Produto', 'Preço', 'Fornecedor']
+                        cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
                         cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
                         
                         if cols_existentes:
@@ -2317,9 +2355,8 @@ def main():
                 
                 if not df_compras_filtered.empty:
                     # Verificar se as colunas necessárias existem para análise
-                    required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
-                    cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
-
+                    required_columns_analysis = ['FORNECEDOR', 'VALOR', 'PRODUTO']
+                    missing_columns_analysis = [col for col in required_columns_analysis if col not in df_compras_filtered.columns]
                     
                     if missing_columns_analysis:
                         st.warning(f"⚠️ Colunas ausentes para análise: {missing_columns_analysis}")
@@ -2328,7 +2365,8 @@ def main():
                         # Análise por fornecedor
                         st.markdown("### 🏪 Gastos por Fornecedor")
                         gastos_fornecedor = df_compras_filtered.groupby('FORNECEDOR')['VALOR'].agg(['sum', 'count']).round(2)
-                        produtos_freq = df_compras_filtered['PRODUTO'].value_counts().head(10)
+                        gastos_fornecedor.columns = ['Total_Gasto', 'Qtd_Compras']
+                        gastos_fornecedor = gastos_fornecedor.sort_values('Total_Gasto', ascending=False)
                         
                         # Gráfico de gastos por fornecedor
                         chart_data = gastos_fornecedor.reset_index()
@@ -2339,12 +2377,12 @@ def main():
                             cornerRadiusTopRight=5
                         ).encode(
                             x=alt.X('Total_Gasto:Q', title='Valor Total Gasto (R$)'),
-                            y=alt.Y('Fornecedor:N', sort='-x', title='Fornecedor'),
+                            y=alt.Y('FORNECEDOR:N', sort='-x', title='Fornecedor'),
                             tooltip=[
-                                alt.Tooltip('Fornecedor:N', title='Fornecedor'),
+                                alt.Tooltip('FORNECEDOR:N', title='Fornecedor'),
                                 alt.Tooltip('Total_Gasto:Q', title='Total Gasto (R$)', format=',.2f'),
                                 alt.Tooltip('Qtd_Compras:Q', title='Quantidade de Compras')
-                            ]
+                                                                ]
                         ).properties(
                             height=400
                         ).configure(
@@ -2355,7 +2393,7 @@ def main():
                         
                         # Top produtos mais comprados
                         st.markdown("### 🍔 Produtos Mais Comprados")
-                        produtos_freq = df_compras_filtered['Produto'].value_counts().head(10)
+                        produtos_freq = df_compras_filtered['PRODUTO'].value_counts().head(10)
                         
                         if not produtos_freq.empty:
                             produtos_chart_data = pd.DataFrame({
@@ -2391,18 +2429,37 @@ def main():
                             st.write(f"• Maior compra: {format_brl(df_compras_filtered['VALOR'].max())}")
                             st.write(f"• Menor compra: {format_brl(df_compras_filtered['VALOR'].min())}")
                             st.write(f"• Compra média: {format_brl(df_compras_filtered['VALOR'].mean())}")
-                            st.write(f"• Total de itens únicos: {df_compras_filtered['PRODUTO'].nunique()}")
                         
                         with col_stats2:
                             st.markdown("**📊 Frequências:**")
                             st.write(f"• Fornecedor mais usado: {gastos_fornecedor.index[0] if not gastos_fornecedor.empty else 'N/A'}")
                             st.write(f"• Produto mais comprado: {produtos_freq.index[0] if not produtos_freq.empty else 'N/A'}")
-                            st.write(f"• Total de itens únicos: {df_compras_filtered['Produto'].nunique()}")
+                            st.write(f"• Total de itens únicos: {df_compras_filtered['PRODUTO'].nunique()}")
                 else:
                     st.info("📊 Nenhuma compra encontrada para análise no período selecionado.")
             else:
                 st.info("📊 Registre algumas compras para visualizar as análises.")
 
+# Lista de fornecedores por categoria
+FORNECEDORES_CATEGORIAS = {
+    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
+    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
+    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
+    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
+    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
+}
+
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == "__main__":
     main()
+
+# --- RODAPÉ PROFISSIONAL ---
+st.markdown("""
+<div class="footer">
+    🍔 <strong>Clips Burger Dashboard</strong> | Desenvolvido com ❤️ usando Streamlit | 
+    📊 Sistema de Gestão Completo | 
+    🔥 <em>Transformando dados em resultados!</em> | 
+    © 2025 - Todos os direitos reservados
+</div>
+""", unsafe_allow_html=True)
+

@@ -2167,14 +2167,21 @@ def main():
         with subtab1:
             st.subheader("📝 Registrar Múltiplas Compras")
             
-            # Data da compra
-            data_compra = st.date_input("📅 Data da Compra", value=datetime.now(), format="DD/MM/YYYY")
+            # Data da compra com label claro
+            st.markdown("### 📅 **Data da Compra**")
+            data_compra = st.date_input(
+                "Selecione a data da compra:", 
+                value=datetime.now(), 
+                format="DD/MM/YYYY",
+                help="Data em que a compra foi realizada"
+            )
             
             # Inicializar session state para produtos (CORRIGIDO)
             if 'produtos_compra' not in st.session_state:
                 st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''}]
             
-            st.markdown("### 🛍️ Lista de Produtos")
+            st.markdown("### 🛍️ **Lista de Produtos para Compra**")
+            st.markdown("*Preencha os dados de cada produto que você está comprando:*")
             
             # Container para os produtos
             produtos_container = st.container()
@@ -2184,94 +2191,145 @@ def main():
                 produtos_validos = []
                 
                 for i, produto_data in enumerate(st.session_state.produtos_compra):
-                    st.markdown(f"**Produto {i+1}:**")
-                    
-                    col1, col2, col3, col4, col5 = st.columns([3, 1.5, 1.5, 3, 1])
-                    
-                    with col1:
-                        produto = st.text_input(
-                            "🍔 Produto/Item",
-                            value=produto_data['produto'],
-                            placeholder="Ex: Hambúrguer, Batata...",
-                            key=f"produto_{i}",
-                            label_visibility="collapsed"
-                        )
-                        st.session_state.produtos_compra[i]['produto'] = produto
-                    
-                    with col2:
-                        quantidade = st.number_input(
-                            "📦 Quantidade",
-                            min_value=0.0,
-                            value=produto_data['quantidade'],
-                            format="%.2f",
-                            key=f"quantidade_{i}",
-                            label_visibility="collapsed"
-                        )
-                        st.session_state.produtos_compra[i]['quantidade'] = quantidade
-                    
-                    with col3:
-                        valor = st.number_input(
-                            "💰 Valor (R$)",
-                            min_value=0.0,
-                            value=produto_data['valor'],
-                            format="%.2f",
-                            key=f"valor_{i}",
-                            label_visibility="collapsed"
-                        )
-                        st.session_state.produtos_compra[i]['valor'] = valor
-                    
-                    with col4:
-                        # Lista de fornecedores por categoria
-                        fornecedores_opcoes = []
-                        for categoria, fornecedores in FORNECEDORES_CATEGORIAS.items():
-                            fornecedores_opcoes.extend(fornecedores)
+                    # Card visual para cada produto
+                    with st.container():
+                        st.markdown(f"""
+                        <div style="background: rgba(255, 255, 255, 0.05); padding: 1rem; border-radius: 10px; margin: 1rem 0; border-left: 4px solid #4c78a8;">
+                            <h4 style="margin: 0; color: #87CEEB;">🛒 Produto {i+1}</h4>
+                        </div>
+                        """, unsafe_allow_html=True)
                         
-                        fornecedor = st.selectbox(
-                            "🏪 Fornecedor",
-                            options=[""] + list(set(fornecedores_opcoes)),
-                            index=0 if produto_data['fornecedor'] == '' else (list(set(fornecedores_opcoes)).index(produto_data['fornecedor']) + 1) if produto_data['fornecedor'] in fornecedores_opcoes else 0,
-                            key=f"fornecedor_{i}",
-                            label_visibility="collapsed"
-                        )
-                        st.session_state.produtos_compra[i]['fornecedor'] = fornecedor
-                    
-                    with col5:
-                        if len(st.session_state.produtos_compra) > 1:
-                            if st.button("🗑️", key=f"remove_{i}", help="Remover produto"):
-                                st.session_state.produtos_compra.pop(i)
-                                st.rerun()
-                    
-                    # Validar se o produto está completo
-                    if produto.strip() and fornecedor.strip() and quantidade > 0 and valor > 0:
-                        produtos_validos.append(produto_data)
-                        total_geral += valor
+                        # Layout em colunas com labels claros
+                        col1, col2 = st.columns([3, 1])
+                        
+                        with col1:
+                            # Nome do produto
+                            st.markdown("**🍔 Nome do Produto/Item:**")
+                            produto = st.text_input(
+                                "Digite o nome do produto:",
+                                value=produto_data['produto'],
+                                placeholder="Ex: Hambúrguer 120g, Batata Congelada 2kg, Refrigerante Coca-Cola...",
+                                key=f"produto_{i}",
+                                help="Seja específico: inclua marca, peso ou tamanho quando relevante"
+                            )
+                            st.session_state.produtos_compra[i]['produto'] = produto
+                        
+                        with col2:
+                            # Botão remover (só aparece se tiver mais de 1 produto)
+                            if len(st.session_state.produtos_compra) > 1:
+                                st.markdown("**🗑️ Remover:**")
+                                if st.button("❌ Remover Produto", key=f"remove_{i}", help="Clique para remover este produto da lista"):
+                                    st.session_state.produtos_compra.pop(i)
+                                    st.rerun()
+                        
+                        # Segunda linha: Quantidade, Valor e Fornecedor
+                        col_qty, col_val, col_forn = st.columns([1.5, 1.5, 3])
+                        
+                        with col_qty:
+                            st.markdown("**📦 Quantidade:**")
+                            quantidade = st.number_input(
+                                "Quantos itens:",
+                                min_value=0.0,
+                                value=produto_data['quantidade'],
+                                format="%.2f",
+                                key=f"quantidade_{i}",
+                                help="Quantidade comprada (ex: 2.5 para 2,5kg)"
+                            )
+                            st.session_state.produtos_compra[i]['quantidade'] = quantidade
+                        
+                        with col_val:
+                            st.markdown("**💰 Valor Total (R$):**")
+                            valor = st.number_input(
+                                "Preço pago:",
+                                min_value=0.0,
+                                value=produto_data['valor'],
+                                format="%.2f",
+                                key=f"valor_{i}",
+                                help="Valor total pago por este item"
+                            )
+                            st.session_state.produtos_compra[i]['valor'] = valor
+                        
+                        with col_forn:
+                            st.markdown("**🏪 Categoria do Fornecedor:**")
+                            
+                            # Selectbox para categoria
+                            categoria_selecionada = st.selectbox(
+                                "Escolha a categoria:",
+                                options=[""] + list(FORNECEDORES_CATEGORIAS.keys()),
+                                key=f"categoria_{i}",
+                                help="Selecione primeiro a categoria do produto"
+                            )
+                            
+                            # Selectbox para fornecedor baseado na categoria
+                            if categoria_selecionada:
+                                fornecedores_da_categoria = FORNECEDORES_CATEGORIAS[categoria_selecionada]
+                                fornecedor = st.selectbox(
+                                    "Escolha o fornecedor:",
+                                    options=[""] + fornecedores_da_categoria,
+                                    key=f"fornecedor_{i}",
+                                    help=f"Fornecedores disponíveis para {categoria_selecionada}"
+                                )
+                                st.session_state.produtos_compra[i]['fornecedor'] = fornecedor
+                            else:
+                                st.session_state.produtos_compra[i]['fornecedor'] = ""
+                                st.info("👆 Selecione uma categoria primeiro")
+                        
+                        # Validar se o produto está completo
+                        if (produto.strip() and 
+                            st.session_state.produtos_compra[i]['fornecedor'].strip() and 
+                            quantidade > 0 and valor > 0):
+                            produtos_validos.append(produto_data)
+                            total_geral += valor
+                            
+                            # Feedback visual de produto válido
+                            st.success(f"✅ Produto válido - Subtotal: {format_brl(valor)}")
+                        elif produto.strip() or quantidade > 0 or valor > 0:
+                            # Produto parcialmente preenchido
+                            st.warning("⚠️ Complete todos os campos obrigatórios para este produto")
                 
-                # Botões de ação (CORRIGIDOS)
-                col_btn1, col_btn2 = st.columns([1, 1])
+                # Separador visual
+                st.markdown("---")
+                
+                # Botões de ação com layout melhorado
+                st.markdown("### ⚙️ **Ações do Formulário**")
+                col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 2])
                 
                 with col_btn1:
-                    if st.button("➕ Adicionar Produto", use_container_width=True):
+                    if st.button("➕ **Adicionar Novo Produto**", use_container_width=True, help="Clique para adicionar mais um produto à lista"):
                         st.session_state.produtos_compra.append({'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''})
                         st.rerun()
                 
                 with col_btn2:
-                    if st.button("🔄 Limpar Todos", use_container_width=True):
+                    if st.button("🔄 **Limpar Formulário**", use_container_width=True, help="Remove todos os produtos e reinicia o formulário"):
                         st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''}]
                         st.rerun()
                 
-                # Display do total
-                st.markdown(f"""
-                <div style="text-align: center; padding: 0.7rem 1rem; background: linear-gradient(90deg, #e45756, #f58518); border-radius: 10px; color: white; margin: 1rem 0; box-shadow: 0 4px 12px rgba(0,0,0,0.2); height: 3rem; display: flex; align-items: center; justify-content: center;">
-                    <div>
-                        <span style="font-size: 1.8rem; margin-right: 0.5rem; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">🛒</span>
-                        <span style="font-size: 2.2rem; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3);">Total: {format_brl(total_geral)} ({len(produtos_validos)} produtos)</span>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                with col_btn3:
+                    # Mostrar quantidade de produtos válidos
+                    st.metric("✅ Produtos Válidos", f"{len(produtos_validos)}")
                 
-                # Botão de registrar compras (CORRIGIDO)
-                if st.button("✅ Registrar Todas as Compras", type="primary", use_container_width=True):
-                    if produtos_validos:
+                # Display do total melhorado
+                if produtos_validos:
+                    st.markdown(f"""
+                    <div style="text-align: center; padding: 1.5rem; background: linear-gradient(90deg, #54a24b, #4c78a8); border-radius: 15px; color: white; margin: 2rem 0; box-shadow: 0 8px 16px rgba(0,0,0,0.3);">
+                        <div>
+                            <span style="font-size: 2rem; margin-right: 1rem;">🛒</span>
+                            <span style="font-size: 1.8rem; font-weight: bold;">TOTAL DA COMPRA</span>
+                        </div>
+                        <div style="margin-top: 0.5rem;">
+                            <span style="font-size: 2.5rem; font-weight: bold; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">{format_brl(total_geral)}</span>
+                        </div>
+                        <div style="margin-top: 0.5rem; font-size: 1.2rem; opacity: 0.9;">
+                            {len(produtos_validos)} produto(s) válido(s)
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.info("💡 **Dica:** Preencha pelo menos um produto completo para ver o total da compra")
+                
+                # Botão de registrar compras melhorado
+                if produtos_validos:
+                    if st.button("✅ **REGISTRAR TODAS AS COMPRAS**", type="primary", use_container_width=True):
                         formatted_date = data_compra.strftime("%d/%m/%Y")
                         compras_worksheet_obj = get_compras_worksheet()
                         
@@ -2279,13 +2337,15 @@ def main():
                             # Limpar cache e resetar formulário
                             read_compras_data.clear()
                             st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''}]
+                            st.balloons()  # Efeito visual de sucesso
                             time.sleep(1)
                             st.rerun()
                         elif not compras_worksheet_obj:
                             st.error("❌ Falha ao conectar à planilha de compras.")
-                    else:
-                        st.warning("⚠️ Adicione pelo menos um produto válido (com produto, fornecedor, quantidade > 0 e valor > 0).")
-        
+                else:
+                    st.warning("⚠️ **Atenção:** Você precisa ter pelo menos um produto válido para registrar a compra")
+                    st.info("📝 **Produto válido:** Nome + Categoria/Fornecedor + Quantidade > 0 + Valor > 0")
+
         with subtab2:
             st.subheader("📋 Lista de Compras Registradas")
             

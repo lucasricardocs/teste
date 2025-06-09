@@ -18,6 +18,15 @@ SPREADSHEET_ID = '1NTScbiIna-iE7roQ9XBdjUOssRihTFFby4INAAQNXTg'
 WORKSHEET_NAME = 'Vendas'
 COMPRAS_WORKSHEET_NAME = 'Compras'
 
+# Lista de fornecedores por categoria
+FORNECEDORES_CATEGORIAS = {
+    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
+    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
+    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
+    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
+    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
+}
+
 # Configuração da página Streamlit
 st.set_page_config(
     page_title="Clips Burger", 
@@ -35,15 +44,6 @@ CORES_MODO_ESCURO = ['#4c78a8', '#54a24b', '#f58518', '#e45756', '#72b7b2', '#ff
 # Define a ordem correta dos dias da semana e meses
 dias_semana_ordem = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
 meses_ordem = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
-
-# Lista de fornecedores por categoria
-FORNECEDORES_CATEGORIAS = {
-    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
-    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
-    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
-    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
-    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
-}
 
 # CSS para melhorar a aparência e adicionar background
 def inject_css():
@@ -574,7 +574,7 @@ def get_compras_worksheet():
             except:
                 # Se a aba não existir, criar uma nova
                 worksheet = spreadsheet.add_worksheet(title=COMPRAS_WORKSHEET_NAME, rows="1000", cols="10")
-                # Adicionar cabeçalhos CORRETOS (sem maiúsculas)
+                # Adicionar cabeçalhos CORRETOS (nomes normais)
                 worksheet.append_row(['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
                 return worksheet
         except SpreadsheetNotFound:
@@ -584,6 +584,34 @@ def get_compras_worksheet():
             st.error(f"Erro ao acessar a planilha '{COMPRAS_WORKSHEET_NAME}': {e}")
             return None
     return None
+
+@st.cache_data
+def read_sales_data():
+    """Lê todos os registros da planilha de vendas e retorna como DataFrame."""
+    worksheet = get_worksheet()
+    if worksheet:
+        try:
+            rows = worksheet.get_all_records()
+            if not rows:
+                st.info("A planilha de vendas está vazia.")
+                return pd.DataFrame()
+
+            df = pd.DataFrame(rows)
+            
+            for col in ['Cartão', 'Dinheiro', 'Pix']:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+                else:
+                    df[col] = 0
+            
+            if 'Data' not in df.columns:
+                df['Data'] = pd.NaT
+
+            return df
+        except Exception as e:
+            st.error(f"Erro ao ler dados da planilha: {e}")
+            return pd.DataFrame()
+    return pd.DataFrame()
 
 @st.cache_data
 def read_compras_data():
@@ -633,53 +661,6 @@ def read_compras_data():
             return pd.DataFrame(columns=['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
     return pd.DataFrame(columns=['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
 
-def read_compras_data():
-    """Lê todos os registros da planilha de compras e retorna como DataFrame."""
-    worksheet = get_compras_worksheet()
-    if worksheet:
-        try:
-            rows = worksheet.get_all_records()
-            if not rows:
-                return pd.DataFrame(columns=['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
-
-            df = pd.DataFrame(rows)
-            
-            # Verificar se as colunas essenciais existem
-            required_columns = ['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            
-            if missing_columns:
-                st.error(f"❌ Colunas ausentes na planilha de compras: {missing_columns}")
-                return pd.DataFrame(columns=required_columns)
-            
-            # Converter valores para numérico
-            if 'VALOR' in df.columns:
-                df['VALOR'] = pd.to_numeric(df['VALOR'], errors='coerce').fillna(0)
-            else:
-                df['VALOR'] = 0
-                
-            if 'QUANTIDADE' in df.columns:
-                df['QUANTIDADE'] = pd.to_numeric(df['QUANTIDADE'], errors='coerce').fillna(0)
-            else:
-                df['QUANTIDADE'] = 0
-            
-            # Processar data
-            if 'DATA' in df.columns and not df['DATA'].isnull().all():
-                df['Data'] = pd.to_datetime(df['DATA'], dayfirst=True, errors='coerce')
-                df.dropna(subset=['Data'], inplace=True)
-                
-                if not df.empty:
-                    df['DataFormatada'] = df['Data'].dt.strftime('%d/%m/%Y')
-                    df['Ano'] = df['Data'].dt.year
-                    df['Mês'] = df['Data'].dt.month
-                    df['MêsNome'] = df['Mês'].map(lambda x: meses_ordem[int(x)-1] if pd.notna(x) and 1 <= int(x) <= 12 else "Inválido")
-
-            return df
-        except Exception as e:
-            st.error(f"Erro ao ler dados da planilha de compras: {e}")
-            return pd.DataFrame(columns=['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
-    return pd.DataFrame(columns=['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
-
 # --- Funções de Manipulação de Dados ---
 def add_data_to_sheet(date, cartao, dinheiro, pix, worksheet_obj):
     """Adiciona uma nova linha de dados à planilha Google Sheets."""
@@ -716,7 +697,7 @@ def add_compras_to_sheet(date, produtos_list, worksheet_obj):
             valor = float(produto_data['valor']) if produto_data['valor'] else 0.0
             fornecedor = produto_data['fornecedor']
             
-            # Nova ordem: DATA, PRODUTO, QUANTIDADE, VALOR, FORNECEDOR
+            # Ordem correta: Data, Produto, Quantidade, Valor, Fornecedor
             new_row = [date, produto, quantidade, valor, fornecedor]
             worksheet_obj.append_row(new_row)
             success_count += 1
@@ -1395,7 +1376,7 @@ def create_activity_heatmap(df_input):
     # Calcular quantos dias antes do 01/01 precisamos adicionar para começar na segunda-feira
     days_before = first_day_weekday
     
-    # Criar range de datas começando na segunda-feira da semana do 01/01
+    # Criar
     # Criar range de datas começando na segunda-feira da semana do 01/01
     start_date = first_day_of_year - pd.Timedelta(days=days_before)
     end_date = datetime(current_year, 12, 31)
@@ -1574,15 +1555,6 @@ def create_activity_heatmap(df_input):
 # Função para formatar valores em moeda brasileira
 def format_brl(value):
     return f"R$ {value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
-
-# Lista de fornecedores por categoria
-FORNECEDORES_CATEGORIAS = {
-    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
-    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
-    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
-    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
-    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
-}
 
 # --- Interface Principal da Aplicação ---
 def main():
@@ -2348,7 +2320,7 @@ def main():
                         cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
                         
                         if cols_existentes:
-                            df_display = df_compras_filtered.sort_values(by='Data', ascending=False)
+                            df_display = df_compras_filtered.sort_values(by='DataProcessada', ascending=False)
                             st.dataframe(df_display[cols_existentes], use_container_width=True, height=400, hide_index=True)
                         else:
                             st.info("Estrutura de dados de compras não está completa.")
@@ -2374,7 +2346,7 @@ def main():
                 
                 if not df_compras_filtered.empty:
                     # Verificar se as colunas necessárias existem para análise
-                    required_columns_analysis = ['FORNECEDOR', 'VALOR', 'PRODUTO']
+                    required_columns_analysis = ['Fornecedor', 'Valor', 'Produto']
                     missing_columns_analysis = [col for col in required_columns_analysis if col not in df_compras_filtered.columns]
                     
                     if missing_columns_analysis:
@@ -2383,7 +2355,7 @@ def main():
                     else:
                         # Análise por fornecedor
                         st.markdown("### 🏪 Gastos por Fornecedor")
-                        gastos_fornecedor = df_compras_filtered.groupby('Fornecedor')['Valor'].agg(['sum', 'count'])
+                        gastos_fornecedor = df_compras_filtered.groupby('Fornecedor')['Valor'].agg(['sum', 'count']).round(2)
                         gastos_fornecedor.columns = ['Total_Gasto', 'Qtd_Compras']
                         gastos_fornecedor = gastos_fornecedor.sort_values('Total_Gasto', ascending=False)
                         
@@ -2396,12 +2368,12 @@ def main():
                             cornerRadiusTopRight=5
                         ).encode(
                             x=alt.X('Total_Gasto:Q', title='Valor Total Gasto (R$)'),
-                            y=alt.Y('FORNECEDOR:N', sort='-x', title='Fornecedor'),
+                            y=alt.Y('Fornecedor:N', sort='-x', title='Fornecedor'),
                             tooltip=[
-                                alt.Tooltip('FORNECEDOR:N', title='Fornecedor'),
+                                alt.Tooltip('Fornecedor:N', title='Fornecedor'),
                                 alt.Tooltip('Total_Gasto:Q', title='Total Gasto (R$)', format=',.2f'),
                                 alt.Tooltip('Qtd_Compras:Q', title='Quantidade de Compras')
-                                                                ]
+                            ]
                         ).properties(
                             height=400
                         ).configure(
@@ -2420,7 +2392,7 @@ def main():
                                 'Frequencia': produtos_freq.values
                             })
                             
-                            produtos_chart = alt.Chart(produtos_chart_data).mark_bar(
+                            produtos_chart = alt.Chart(produtos_chart_data).                            produtos_chart = alt.Chart(produtos_chart_data).mark_bar(
                                 color=CORES_MODO_ESCURO[1],
                                 cornerRadiusTopLeft=5,
                                 cornerRadiusTopRight=5
@@ -2459,13 +2431,13 @@ def main():
             else:
                 st.info("📊 Registre algumas compras para visualizar as análises.")
 
-# Lista de fornecedores por categoria
+# Lista de fornecedores por categoria (CORRIGIDA)
 FORNECEDORES_CATEGORIAS = {
-    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
-    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
-    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
-    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
-    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
+    "FRIOS": ["MMFrios"],
+    "BEBIDAS": ["Praca da Biblia"],
+    "HAMBURGER": ["Max"],
+    "SUPERMERCADO": ["Costa", "Nova Jerusalem"],
+    "PAO": ["Roma"]
 }
 
 # --- Ponto de Entrada da Aplicação ---
@@ -2481,4 +2453,3 @@ st.markdown("""
     © 2025 - Todos os direitos reservados
 </div>
 """, unsafe_allow_html=True)
-

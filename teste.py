@@ -574,8 +574,8 @@ def get_compras_worksheet():
             except:
                 # Se a aba não existir, criar uma nova
                 worksheet = spreadsheet.add_worksheet(title=COMPRAS_WORKSHEET_NAME, rows="1000", cols="10")
-                # Adicionar cabeçalhos CORRETOS (nomes normais)
-                worksheet.append_row(['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
+                # Adicionar cabeçalhos CORRETOS
+                worksheet.append_row(['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
                 return worksheet
         except SpreadsheetNotFound:
             st.error(f"Planilha com ID '{SPREADSHEET_ID}' não encontrada.")
@@ -621,12 +621,12 @@ def read_compras_data():
         try:
             rows = worksheet.get_all_records()
             if not rows:
-                return pd.DataFrame(columns=['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
+                return pd.DataFrame(columns=['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
 
             df = pd.DataFrame(rows)
             
-            # Verificar se as colunas essenciais existem (nomes corretos)
-            required_columns = ['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor']
+            # Verificar se as colunas essenciais existem
+            required_columns = ['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
             missing_columns = [col for col in required_columns if col not in df.columns]
             
             if missing_columns:
@@ -634,32 +634,32 @@ def read_compras_data():
                 return pd.DataFrame(columns=required_columns)
             
             # Converter valores para numérico
-            if 'Valor' in df.columns:
-                df['Valor'] = pd.to_numeric(df['Valor'], errors='coerce').fillna(0)
+            if 'VALOR' in df.columns:
+                df['VALOR'] = pd.to_numeric(df['VALOR'], errors='coerce').fillna(0)
             else:
-                df['Valor'] = 0
+                df['VALOR'] = 0
                 
-            if 'Quantidade' in df.columns:
-                df['Quantidade'] = pd.to_numeric(df['Quantidade'], errors='coerce').fillna(0)
+            if 'QUANTIDADE' in df.columns:
+                df['QUANTIDADE'] = pd.to_numeric(df['QUANTIDADE'], errors='coerce').fillna(0)
             else:
-                df['Quantidade'] = 0
+                df['QUANTIDADE'] = 0
             
             # Processar data
-            if 'Data' in df.columns and not df['Data'].isnull().all():
-                df['DataProcessada'] = pd.to_datetime(df['Data'], dayfirst=True, errors='coerce')
-                df.dropna(subset=['DataProcessada'], inplace=True)
+            if 'DATA' in df.columns and not df['DATA'].isnull().all():
+                df['Data'] = pd.to_datetime(df['DATA'], dayfirst=True, errors='coerce')
+                df.dropna(subset=['Data'], inplace=True)
                 
                 if not df.empty:
-                    df['DataFormatada'] = df['DataProcessada'].dt.strftime('%d/%m/%Y')
-                    df['Ano'] = df['DataProcessada'].dt.year
-                    df['Mês'] = df['DataProcessada'].dt.month
+                    df['DataFormatada'] = df['Data'].dt.strftime('%d/%m/%Y')
+                    df['Ano'] = df['Data'].dt.year
+                    df['Mês'] = df['Data'].dt.month
                     df['MêsNome'] = df['Mês'].map(lambda x: meses_ordem[int(x)-1] if pd.notna(x) and 1 <= int(x) <= 12 else "Inválido")
 
             return df
         except Exception as e:
             st.error(f"Erro ao ler dados da planilha de compras: {e}")
-            return pd.DataFrame(columns=['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
-    return pd.DataFrame(columns=['Data', 'Produto', 'Quantidade', 'Valor', 'Fornecedor'])
+            return pd.DataFrame(columns=['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
+    return pd.DataFrame(columns=['DATA', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR'])
 
 # --- Funções de Manipulação de Dados ---
 def add_data_to_sheet(date, cartao, dinheiro, pix, worksheet_obj):
@@ -697,7 +697,7 @@ def add_compras_to_sheet(date, produtos_list, worksheet_obj):
             valor = float(produto_data['valor']) if produto_data['valor'] else 0.0
             fornecedor = produto_data['fornecedor']
             
-            # Ordem correta: Data, Produto, Quantidade, Valor, Fornecedor
+            # Nova ordem: DATA, PRODUTO, QUANTIDADE, VALOR, FORNECEDOR
             new_row = [date, produto, quantidade, valor, fornecedor]
             worksheet_obj.append_row(new_row)
             success_count += 1
@@ -1373,10 +1373,11 @@ def create_activity_heatmap(df_input):
     first_day_of_year = pd.Timestamp(f'{current_year}-01-01')
     first_day_weekday = first_day_of_year.weekday()
     
+    # Calcular quantos dias antes do 01/01 precisamos adicionar para começar na segunda
+# --- CONTINUAÇÃO DO HEATMAP (completar a função) ---
     # Calcular quantos dias antes do 01/01 precisamos adicionar para começar na segunda-feira
     days_before = first_day_weekday
     
-    # Criar
     # Criar range de datas começando na segunda-feira da semana do 01/01
     start_date = first_day_of_year - pd.Timedelta(days=days_before)
     end_date = datetime(current_year, 12, 31)
@@ -1555,6 +1556,15 @@ def create_activity_heatmap(df_input):
 # Função para formatar valores em moeda brasileira
 def format_brl(value):
     return f"R$ {value:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+
+# Lista de fornecedores por categoria (CORRIGIDA)
+FORNECEDORES_CATEGORIAS = {
+    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
+    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
+    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
+    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
+    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
+}
 
 # --- Interface Principal da Aplicação ---
 def main():
@@ -2146,7 +2156,8 @@ def main():
             Para decisões estratégicas, consulte sempre um contador qualificado.
             """)
 
-    # --- TAB5: GESTÃO DE COMPRAS COM MÚLTIPLOS PRODUTOS ---
+    # --- TAB5: GESTÃO DE COMPRAS COM MÚLTIPLOS PRODUTOS (CORRIGIDA) ---
+    # --- TAB5: GESTÃO DE COMPRAS COM MÚLTIPLOS PRODUTOS (CORRIGIDA COMPLETAMENTE) ---
     with tab5:
         st.header("🛒 Gestão de Compras")
         
@@ -2159,7 +2170,7 @@ def main():
             # Data da compra
             data_compra = st.date_input("📅 Data da Compra", value=datetime.now(), format="DD/MM/YYYY")
             
-            # Inicializar session state para produtos
+            # Inicializar session state para produtos (CORRIGIDO)
             if 'produtos_compra' not in st.session_state:
                 st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'fornecedor': ''}]
             
@@ -2235,7 +2246,7 @@ def main():
                         produtos_validos.append(produto_data)
                         total_geral += valor
                 
-                # Botões de ação
+                # Botões de ação (CORRIGIDOS)
                 col_btn1, col_btn2 = st.columns([1, 1])
                 
                 with col_btn1:
@@ -2258,7 +2269,7 @@ def main():
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Botão de registrar compras
+                # Botão de registrar compras (CORRIGIDO)
                 if st.button("✅ Registrar Todas as Compras", type="primary", use_container_width=True):
                     if produtos_validos:
                         formatted_date = data_compra.strftime("%d/%m/%Y")
@@ -2292,15 +2303,15 @@ def main():
                     df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
                 
                 if not df_compras_filtered.empty:
-                    # Verificar se as colunas necessárias existem
-                    required_columns = ['Fornecedor', 'Valor', 'DataFormatada']
+                    # Verificar se as colunas necessárias existem (CORRIGIDO)
+                    required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
                     missing_columns = [col for col in required_columns if col not in df_compras_filtered.columns]
                     
                     if missing_columns:
                         st.warning(f"⚠️ Colunas ausentes no DataFrame de compras: {missing_columns}")
                         st.info("📝 Registre algumas compras primeiro para visualizar as estatísticas.")
                     else:
-                        # Exibir métricas resumo
+                        # Exibir métricas resumo (CORRIGIDO)
                         col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
                         
                         with col_metrics1:
@@ -2308,19 +2319,19 @@ def main():
                             st.metric("🔢 Total de Compras", total_compras)
                         
                         with col_metrics2:
-                            valor_total_compras = df_compras_filtered['Valor'].sum()
+                            valor_total_compras = df_compras_filtered['VALOR'].sum()
                             st.metric("💰 Valor Total", format_brl(valor_total_compras))
                         
                         with col_metrics3:
-                            fornecedores_unicos = df_compras_filtered['Fornecedor'].nunique()
+                            fornecedores_unicos = df_compras_filtered['FORNECEDOR'].nunique()
                             st.metric("🏪 Fornecedores", fornecedores_unicos)
                         
-                        # Tabela de compras
-                        cols_to_display = ['DataFormatada', 'Produto', 'Quantidade', 'Valor', 'Fornecedor']
+                        # Tabela de compras (CORRIGIDO)
+                        cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
                         cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
                         
                         if cols_existentes:
-                            df_display = df_compras_filtered.sort_values(by='DataProcessada', ascending=False)
+                            df_display = df_compras_filtered.sort_values(by='Data', ascending=False)
                             st.dataframe(df_display[cols_existentes], use_container_width=True, height=400, hide_index=True)
                         else:
                             st.info("Estrutura de dados de compras não está completa.")
@@ -2345,17 +2356,17 @@ def main():
                     df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
                 
                 if not df_compras_filtered.empty:
-                    # Verificar se as colunas necessárias existem para análise
-                    required_columns_analysis = ['Fornecedor', 'Valor', 'Produto']
+                    # Verificar se as colunas necessárias existem para análise (CORRIGIDO)
+                    required_columns_analysis = ['FORNECEDOR', 'VALOR', 'PRODUTO']
                     missing_columns_analysis = [col for col in required_columns_analysis if col not in df_compras_filtered.columns]
                     
                     if missing_columns_analysis:
                         st.warning(f"⚠️ Colunas ausentes para análise: {missing_columns_analysis}")
                         st.info("📝 Registre algumas compras primeiro para visualizar as análises.")
                     else:
-                        # Análise por fornecedor
+                        # Análise por fornecedor (CORRIGIDO)
                         st.markdown("### 🏪 Gastos por Fornecedor")
-                        gastos_fornecedor = df_compras_filtered.groupby('Fornecedor')['Valor'].agg(['sum', 'count']).round(2)
+                        gastos_fornecedor = df_compras_filtered.groupby('FORNECEDOR')['VALOR'].agg(['sum', 'count']).round(2)
                         gastos_fornecedor.columns = ['Total_Gasto', 'Qtd_Compras']
                         gastos_fornecedor = gastos_fornecedor.sort_values('Total_Gasto', ascending=False)
                         
@@ -2368,9 +2379,9 @@ def main():
                             cornerRadiusTopRight=5
                         ).encode(
                             x=alt.X('Total_Gasto:Q', title='Valor Total Gasto (R$)'),
-                            y=alt.Y('Fornecedor:N', sort='-x', title='Fornecedor'),
+                            y=alt.Y('FORNECEDOR:N', sort='-x', title='Fornecedor'),
                             tooltip=[
-                                alt.Tooltip('Fornecedor:N', title='Fornecedor'),
+                                alt.Tooltip('FORNECEDOR:N', title='Fornecedor'),
                                 alt.Tooltip('Total_Gasto:Q', title='Total Gasto (R$)', format=',.2f'),
                                 alt.Tooltip('Qtd_Compras:Q', title='Quantidade de Compras')
                             ]
@@ -2382,9 +2393,9 @@ def main():
                         
                         st.altair_chart(fornecedor_chart, use_container_width=True)
                         
-                        # Top produtos mais comprados
+                        # Top produtos mais comprados (CORRIGIDO)
                         st.markdown("### 🍔 Produtos Mais Comprados")
-                        produtos_freq = df_compras_filtered['Produto'].value_counts().head(10)
+                        produtos_freq = df_compras_filtered['PRODUTO'].value_counts().head(10)
                         
                         if not produtos_freq.empty:
                             produtos_chart_data = pd.DataFrame({
@@ -2392,7 +2403,7 @@ def main():
                                 'Frequencia': produtos_freq.values
                             })
                             
-                            produtos_chart = alt.Chart(produtos_chart_data).                            produtos_chart = alt.Chart(produtos_chart_data).mark_bar(
+                            produtos_chart = alt.Chart(produtos_chart_data).mark_bar(
                                 color=CORES_MODO_ESCURO[1],
                                 cornerRadiusTopLeft=5,
                                 cornerRadiusTopRight=5
@@ -2411,7 +2422,7 @@ def main():
                             
                             st.altair_chart(produtos_chart, use_container_width=True)
                         
-                        # Resumo estatístico
+                        # Resumo estatístico (CORRIGIDO)
                         st.markdown("### 📈 Resumo Estatístico")
                         col_stats1, col_stats2 = st.columns(2)
                         
@@ -2433,11 +2444,11 @@ def main():
 
 # Lista de fornecedores por categoria (CORRIGIDA)
 FORNECEDORES_CATEGORIAS = {
-    "FRIOS": ["MMFrios"],
-    "BEBIDAS": ["Praca da Biblia"],
-    "HAMBURGER": ["Max"],
-    "SUPERMERCADO": ["Costa", "Nova Jerusalem"],
-    "PAO": ["Roma"]
+    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
+    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
+    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
+    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
+    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
 }
 
 # --- Ponto de Entrada da Aplicação ---

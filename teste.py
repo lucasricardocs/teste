@@ -2157,7 +2157,7 @@ def main():
             """)
 
     # --- TAB5: GESTÃO DE COMPRAS COM MÚLTIPLOS PRODUTOS (CORRIGIDA) ---
-    # --- TAB5: GESTÃO DE COMPRAS COM MÚLTIPLOS PRODUTOS (CORRIGIDA COMPLETAMENTE) ---
+    # --- TAB5: GESTÃO DE COMPRAS CORRIGIDA ---
     with tab5:
         st.header("🛒 Gestão de Compras")
         
@@ -2355,29 +2355,9 @@ def main():
                         st.error("❌ Falha ao conectar à planilha de compras.")
             else:
                 st.warning("⚠️ **Atenção:** Você precisa ter pelo menos um produto válido para registrar a compra")
-                st.info("📝 **Produto válido:** Nome + Categoria/Fornecedor + Quantidade > 0 + Valor > 0")            
-            # Botões de gerenciamento fora do form (para evitar conflitos)
-            st.markdown("### ⚙️ **Gerenciar Produtos**")
-            col_btn1, col_btn2, col_btn3 = st.columns([2, 2, 2])
-            
-            with col_btn1:
-                if st.button("➕ **Adicionar Novo Produto**", use_container_width=True, key="add_produto_btn"):
-                    st.session_state.produtos_compra.append({'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''})
-                    st.rerun()
-            
-            with col_btn2:
-                if st.button("🔄 **Limpar Formulário**", use_container_width=True, key="clear_form_btn"):
-                    st.session_state.produtos_compra = [{'produto': '', 'quantidade': 0.0, 'valor': 0.0, 'categoria': '', 'fornecedor': ''}]
-                    st.rerun()
-            
-            with col_btn3:
-                if len(st.session_state.produtos_compra) > 1:
-                    if st.button("🗑️ **Remover Último**", use_container_width=True, key="remove_last_btn"):
-                        st.session_state.produtos_compra.pop()
-                        st.rerun()
-        
-        elif st.session_state.active_compras_tab == 1:
-            # SUBTAB 2: LISTA DE COMPRAS
+                st.info("📝 **Produto válido:** Nome + Categoria/Fornecedor + Quantidade > 0 + Valor > 0")
+    
+        with subtab2:
             st.subheader("📋 Lista de Compras Registradas")
             
             # Carregar dados de compras
@@ -2394,7 +2374,7 @@ def main():
                     df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
                 
                 if not df_compras_filtered.empty:
-                    # Verificar se as colunas necessárias existem
+                    # Verificar se as colunas necessárias existem (CORRIGIDO)
                     required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
                     missing_columns = [col for col in required_columns if col not in df_compras_filtered.columns]
                     
@@ -2402,7 +2382,7 @@ def main():
                         st.warning(f"⚠️ Colunas ausentes no DataFrame de compras: {missing_columns}")
                         st.info("📝 Registre algumas compras primeiro para visualizar as estatísticas.")
                     else:
-                        # Exibir métricas resumo
+                        # Exibir métricas resumo (CORRIGIDO)
                         col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
                         
                         with col_metrics1:
@@ -2417,7 +2397,7 @@ def main():
                             fornecedores_unicos = df_compras_filtered['FORNECEDOR'].nunique()
                             st.metric("🏪 Fornecedores", fornecedores_unicos)
                         
-                        # Tabela de compras
+                        # Tabela de compras (CORRIGIDO)
                         cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
                         cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
                         
@@ -2431,11 +2411,19 @@ def main():
             else:
                 st.info("📊 Nenhuma compra registrada ainda. Use a aba 'Registrar Compras' para começar.")
         
-        elif st.session_state.active_compras_tab == 2:
-            # SUBTAB 3: ANÁLISE DE COMPRAS
+        with subtab3:
             st.subheader("📊 Análise de Compras")
             
             df_compras = read_compras_data()
+            
+            if not df_filtered.empty and 'Total' in df_filtered.columns:
+                # Adicionar o histograma de vendas diárias
+                st.subheader("📊 Histograma de Vendas Diárias por Faixas")
+                daily_histogram = create_daily_sales_histogram(df_filtered, "Distribuição de Vendas por Faixas de Valor")
+                if daily_histogram:
+                    st.altair_chart(daily_histogram, use_container_width=True)
+                else:
+                    st.info("Dados insuficientes para o histograma de vendas diárias.")
             
             if not df_compras.empty:
                 # Aplicar filtros
@@ -2448,7 +2436,7 @@ def main():
                     df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
                 
                 if not df_compras_filtered.empty:
-                    # Verificar se as colunas necessárias existem para análise
+                    # Verificar se as colunas necessárias existem para análise (CORRIGIDO)
                     required_columns_analysis = ['FORNECEDOR', 'VALOR', 'PRODUTO']
                     missing_columns_analysis = [col for col in required_columns_analysis if col not in df_compras_filtered.columns]
                     
@@ -2456,7 +2444,7 @@ def main():
                         st.warning(f"⚠️ Colunas ausentes para análise: {missing_columns_analysis}")
                         st.info("📝 Registre algumas compras primeiro para visualizar as análises.")
                     else:
-                        # Análise por fornecedor
+                        # Análise por fornecedor (CORRIGIDO)
                         st.markdown("### 🏪 Gastos por Fornecedor")
                         gastos_fornecedor = df_compras_filtered.groupby('FORNECEDOR')['VALOR'].agg(['sum', 'count']).round(2)
                         gastos_fornecedor.columns = ['Total_Gasto', 'Qtd_Compras']
@@ -2485,7 +2473,7 @@ def main():
                         
                         st.altair_chart(fornecedor_chart, use_container_width=True)
                         
-                        # Top produtos mais comprados
+                        # Top produtos mais comprados (CORRIGIDO)
                         st.markdown("### 🍔 Produtos Mais Comprados")
                         produtos_freq = df_compras_filtered['PRODUTO'].value_counts().head(10)
                         
@@ -2514,7 +2502,7 @@ def main():
                             
                             st.altair_chart(produtos_chart, use_container_width=True)
                         
-                        # Resumo estatístico
+                        # Resumo estatístico (CORRIGIDO)
                         st.markdown("### 📈 Resumo Estatístico")
                         col_stats1, col_stats2 = st.columns(2)
                         
@@ -2534,25 +2522,16 @@ def main():
             else:
                 st.info("📊 Registre algumas compras para visualizar as análises.")
     
-# Lista de fornecedores por categoria (CORRIGIDA)
-FORNECEDORES_CATEGORIAS = {
-    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
-    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
-    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
-    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
-    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
-}
-
-# --- Ponto de Entrada da Aplicação ---
-if __name__ == "__main__":
-    main()
-
-# --- RODAPÉ PROFISSIONAL ---
-st.markdown("""
-<div class="footer">
-    🍔 <strong>Clips Burger Dashboard</strong> | Desenvolvido com ❤️ usando Streamlit | 
-    📊 Sistema de Gestão Completo | 
-    🔥 <em>Transformando dados em resultados!</em> | 
-    © 2025 - Todos os direitos reservados
-</div>
-""", unsafe_allow_html=True)
+    # --- Ponto de Entrada da Aplicação ---
+    if __name__ == "__main__":
+        main()
+    
+    # --- RODAPÉ PROFISSIONAL ---
+    st.markdown("""
+    <div class="footer">
+        🍔 <strong>Clips Burger Dashboard</strong> | Desenvolvido com ❤️ usando Streamlit | 
+        📊 Sistema de Gestão Completo | 
+        🔥 <em>Transformando dados em resultados!</em> | 
+        © 2025 - Todos os direitos reservados
+    </div>
+    """, unsafe_allow_html=True)

@@ -1559,11 +1559,11 @@ def format_brl(value):
 
 # Lista de fornecedores por categoria (CORRIGIDA)
 FORNECEDORES_CATEGORIAS = {
-    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
-    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
-    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
-    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
-    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
+    "FRIOS": ["MMP Frios"],
+    "BEBIDAS": ["Praca da Biblia"],
+    "HAMBURGER": ["Max"],
+    "SUPERMERCADO": ["Nova Jerusalem", "Raio"],
+    "PAO": ["Di Roma"]
 }
 
 # --- Interface Principal da Aplicação ---

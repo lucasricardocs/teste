@@ -20,7 +20,7 @@ COMPRAS_WORKSHEET_NAME = 'Compras'
 
 # Lista de fornecedores por categoria
 FORNECEDORES_CATEGORIAS = {
-    "FRIOS": ["MMP FRIOS"],
+    "FRIOS": ["MMP FRIOS", "New Frios"],
     "BEBIDAS": ["PRACA DA BIBLIA"],
     "HAMBURGER": ["MAX"],
     "SUPERMERCADO": ["NOVA JERUSALEM", "RAIO"],
@@ -1627,7 +1627,7 @@ def format_brl(value):
 
 # Lista de fornecedores por categoria (CORRIGIDA)
 FORNECEDORES_CATEGORIAS = {
-    "FRIOS": ["MMP Frios"],
+    "FRIOS": ["MMP Frios", "New Frios"],
     "BEBIDAS": ["Praca da Biblia"],
     "HAMBURGER": ["Max"],
     "SUPERMERCADO": ["Nova Jerusalem", "Raio"],

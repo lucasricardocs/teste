@@ -1077,90 +1077,8 @@ def analyze_sales_by_weekday(df):
         st.error(f"Erro ao analisar vendas por dia da semana: {e}")
         return None, None
 
-def create_purchases_value_histogram_by_date(df_compras, title="Histograma de Valor de Compras por Data"):
-    """Cria histograma de valores de compras por data, diferenciado por fornecedor."""
-    if df_compras.empty or 'VALOR' not in df_compras.columns or df_compras['VALOR'].isnull().all():
-        return None
-    
-    # Filtrar apenas compras > 0
-    df_filtered = df_compras[df_compras['VALOR'] > 0].copy()
-    if df_filtered.empty:
-        return None
-    
-    # Verificar se existe coluna de fornecedor e data
-    if 'FORNECEDOR' not in df_filtered.columns or 'Data' not in df_filtered.columns:
-        return None
-    
-    # Agrupar por data e fornecedor, somando valores do mesmo dia
-    daily_purchases = df_filtered.groupby(['Data', 'FORNECEDOR'])['VALOR'].sum().reset_index()
-    
-    if daily_purchases.empty:
-        return None
-    
-    # Criar faixas de valores para o histograma baseado nos valores diários
-    daily_purchases['Faixa_Valor'] = pd.cut(
-        daily_purchases['VALOR'], 
-        bins=[0, 100, 300, 500, 800, 1200, float('inf')],
-        labels=['R$ 0-100', 'R$ 100-300', 'R$ 300-500', 'R$ 500-800', 'R$ 800-1200', 'R$ 1200+']
-    )
-    
-    # Agrupar por faixa de valor e fornecedor para contar frequências
-    grouped_data = daily_purchases.groupby(['Faixa_Valor', 'FORNECEDOR']).size().reset_index(name='Frequencia')
-    
-    if grouped_data.empty:
-        return None
-    
-    # Criar histograma diferenciado por fornecedor
-    histogram = alt.Chart(grouped_data).mark_bar(
-        opacity=0.8,
-        cornerRadiusTopLeft=5,
-        cornerRadiusTopRight=5,
-        stroke='white',
-        strokeWidth=1
-    ).encode(
-        x=alt.X(
-            'Faixa_Valor:O',
-            title='Faixa de Valor das Compras Diárias',
-            axis=alt.Axis(labelAngle=-45, labelFontSize=12)
-        ),
-        y=alt.Y(
-            'Frequencia:Q',
-            title='Número de Dias',
-            axis=alt.Axis(labelFontSize=12)
-        ),
-        color=alt.Color(
-            'FORNECEDOR:N',
-            scale=alt.Scale(range=CORES_MODO_ESCURO),
-            legend=alt.Legend(
-                title="Fornecedores",
-                orient="right",
-                titleFontSize=14,
-                labelFontSize=12
-            )
-        ),
-        tooltip=[
-            alt.Tooltip('Faixa_Valor:O', title='Faixa de Valor'),
-            alt.Tooltip('FORNECEDOR:N', title='Fornecedor'),
-            alt.Tooltip('Frequencia:Q', title='Número de Dias')
-        ]
-    ).properties(
-        title=alt.TitleParams(
-            text=title,
-            fontSize=18,
-            anchor='start'
-        ),
-        height=400,
-        width=600
-    ).configure_view(
-        stroke=None
-    ).configure(
-        background='transparent'
-    )
-    
-    return histogram
-
-def create_purchases_scatter_by_date(df_compras, title="Distribuição de Compras por Data e Valor"):
-    """Cria gráfico de dispersão mostrando valor das compras por data."""
+def create_stacked_purchases_by_date_supplier(df_compras, title="Compras por Data e Fornecedor"):
+    """Cria gráfico de barras empilhadas por fornecedor, com datas no eixo X e valores no eixo Y."""
     if df_compras.empty or 'Data' not in df_compras.columns or 'VALOR' not in df_compras.columns:
         return None
     
@@ -1173,16 +1091,17 @@ def create_purchases_scatter_by_date(df_compras, title="Distribuição de Compra
     if 'FORNECEDOR' not in df_filtered.columns:
         return None
     
-    # Agrupar por data e fornecedor
+    # Agrupar por data e fornecedor, somando valores do mesmo dia
     daily_purchases = df_filtered.groupby(['Data', 'FORNECEDOR'])['VALOR'].sum().reset_index()
     
     if daily_purchases.empty:
         return None
     
-    # Criar gráfico de dispersão
-    scatter = alt.Chart(daily_purchases).mark_circle(
-        size=100,
-        opacity=0.7
+    # Criar gráfico de barras empilhadas
+    stacked_chart = alt.Chart(daily_purchases).mark_bar(
+        opacity=0.8,
+        stroke='white',
+        strokeWidth=1
     ).encode(
         x=alt.X(
             'Data:T',
@@ -1191,7 +1110,8 @@ def create_purchases_scatter_by_date(df_compras, title="Distribuição de Compra
         ),
         y=alt.Y(
             'VALOR:Q',
-            title='Valor da Compra (R$)',
+            title='Valor Total da Compra (R$)',
+            stack='zero',
             axis=alt.Axis(labelFontSize=12)
         ),
         color=alt.Color(
@@ -1215,15 +1135,16 @@ def create_purchases_scatter_by_date(df_compras, title="Distribuição de Compra
             fontSize=18,
             anchor='start'
         ),
-        height=400,
-        width=600
+        height=500,
+        width=800
     ).configure_view(
         stroke=None
     ).configure(
         background='transparent'
     )
     
-    return scatter
+    return stacked_chart
+
 
 
 # --- Funções de Cálculos Financeiros ---
@@ -2519,8 +2440,50 @@ def main():
                 st.info("📝 **Produto válido:** Nome + Categoria/Fornecedor + Quantidade > 0 + Valor > 0")
     
         with subtab2:
-            # [Código da subtab2 permanece igual]
-            pass
+            st.subheader("📋 Lista de Compras Registradas")
+            
+            # Carregar dados de compras
+            df_compras = read_compras_data()
+            
+            if not df_compras.empty:
+                # Aplicar filtros de ano e mês se disponíveis
+                df_compras_filtered = df_compras.copy()
+                
+                if selected_anos_filter and 'Ano' in df_compras_filtered.columns:
+                    df_compras_filtered = df_compras_filtered[df_compras_filtered['Ano'].isin(selected_anos_filter)]
+                
+                if selected_meses_filter and 'Mês' in df_compras_filtered.columns:
+                    df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
+                
+                if not df_compras_filtered.empty:
+                    # Exibir métricas resumo
+                    col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
+                    
+                    with col_metrics1:
+                        total_compras = len(df_compras_filtered)
+                        st.metric("🔢 Total de Compras", total_compras)
+                    
+                    with col_metrics2:
+                        valor_total_compras = df_compras_filtered['Preço'].sum()
+                        st.metric("💰 Valor Total", format_brl(valor_total_compras))
+                    
+                    with col_metrics3:
+                        fornecedores_unicos = df_compras_filtered['Fornecedor'].nunique()
+                        st.metric("🏪 Fornecedores", fornecedores_unicos)
+                    
+                    # Tabela de compras
+                    cols_to_display = ['DataFormatada', 'Produto', 'Preço', 'Fornecedor']
+                    cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
+                    
+                    if cols_existentes:
+                        df_display = df_compras_filtered.sort_values(by='Data', ascending=False)
+                        st.dataframe(df_display[cols_existentes], use_container_width=True, height=400, hide_index=True)
+                    else:
+                        st.info("Estrutura de dados de compras não está completa.")
+                else:
+                    st.info("📊 Nenhuma compra encontrada para o período selecionado.")
+            else:
+                st.info("📊 Nenhuma compra registrada ainda. Use a aba 'Registrar Compra' para começar.")
     
         with subtab3:
             st.subheader("📊 Análise de Compras")
@@ -2538,114 +2501,63 @@ def main():
                     df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
                 
                 if not df_compras_filtered.empty:
-                    # NOVO: Histograma de valor de compras por data e fornecedor
-                    st.markdown("### 📊 Histograma de Valor de Compras por Data")
-                    st.markdown("*Mostra a distribuição dos valores de compras diárias por faixas, diferenciado por fornecedor*")
-                    
-                    purchases_value_histogram = create_purchases_value_histogram_by_date(
-                        df_compras_filtered, 
-                        "Distribuição de Valores de Compras Diárias por Fornecedor"
-                    )
-                    if purchases_value_histogram:
-                        st.altair_chart(purchases_value_histogram, use_container_width=True)
-                    else:
-                        st.info("Dados insuficientes para o histograma de valores de compras por data.")
-                    
-                    # NOVO: Gráfico de dispersão valor x data
-                    st.markdown("### 📈 Distribuição de Compras por Data e Valor")
-                    st.markdown("*Cada ponto representa o valor total de compras de um fornecedor em uma data específica*")
-                    
-                    purchases_scatter = create_purchases_scatter_by_date(
-                        df_compras_filtered, 
-                        "Valor das Compras por Data e Fornecedor"
-                    )
-                    if purchases_scatter:
-                        st.altair_chart(purchases_scatter, use_container_width=True)
-                    else:
-                        st.info("Dados insuficientes para o gráfico de dispersão de compras.")
-                    
-                    # Verificar se as colunas necessárias existem para análise (CORRIGIDO)
-                    required_columns_analysis = ['FORNECEDOR', 'VALOR', 'PRODUTO']
+                    # Verificar se as colunas necessárias existem
+                    required_columns_analysis = ['FORNECEDOR', 'VALOR', 'Data']
                     missing_columns_analysis = [col for col in required_columns_analysis if col not in df_compras_filtered.columns]
                     
                     if missing_columns_analysis:
                         st.warning(f"⚠️ Colunas ausentes para análise: {missing_columns_analysis}")
                         st.info("📝 Registre algumas compras primeiro para visualizar as análises.")
                     else:
-                        # Análise por fornecedor (CORRIGIDO)
-                        st.markdown("### 🏪 Gastos por Fornecedor")
-                        gastos_fornecedor = df_compras_filtered.groupby('FORNECEDOR')['VALOR'].agg(['sum', 'count']).round(2)
-                        gastos_fornecedor.columns = ['Total_Gasto', 'Qtd_Compras']
-                        gastos_fornecedor = gastos_fornecedor.sort_values('Total_Gasto', ascending=False)
+                        # ÚNICO GRÁFICO: Barras empilhadas por fornecedor e data
+                        st.markdown("### 📊 Compras por Data e Fornecedor")
+                        st.markdown("*Gráfico de barras empilhadas mostrando o valor total de compras por data, diferenciado por fornecedor*")
                         
-                        # Gráfico de gastos por fornecedor
-                        chart_data = gastos_fornecedor.reset_index()
-                        
-                        fornecedor_chart = alt.Chart(chart_data).mark_bar(
-                            color=CORES_MODO_ESCURO[3],
-                            cornerRadiusTopLeft=5,
-                            cornerRadiusTopRight=5
-                        ).encode(
-                            x=alt.X('Total_Gasto:Q', title='Valor Total Gasto (R$)'),
-                            y=alt.Y('FORNECEDOR:N', sort='-x', title='Fornecedor'),
-                            tooltip=[
-                                alt.Tooltip('FORNECEDOR:N', title='Fornecedor'),
-                                alt.Tooltip('Total_Gasto:Q', title='Total Gasto (R$)', format=',.2f'),
-                                alt.Tooltip('Qtd_Compras:Q', title='Quantidade de Compras')
-                            ]
-                        ).properties(
-                            height=400
-                        ).configure(
-                            background='transparent'
+                        stacked_purchases_chart = create_stacked_purchases_by_date_supplier(
+                            df_compras_filtered, 
+                            "Valor Total de Compras por Data e Fornecedor"
                         )
                         
-                        st.altair_chart(fornecedor_chart, use_container_width=True)
+                        if stacked_purchases_chart:
+                            st.altair_chart(stacked_purchases_chart, use_container_width=True)
+                        else:
+                            st.info("Dados insuficientes para o gráfico de barras empilhadas.")
                         
-                        # Top produtos mais comprados (CORRIGIDO)
-                        st.markdown("### 🍔 Produtos Mais Comprados")
-                        produtos_freq = df_compras_filtered['PRODUTO'].value_counts().head(10)
+                        # Informações resumo abaixo do gráfico
+                        st.markdown("---")
+                        st.markdown("### 📈 Resumo dos Dados")
                         
-                        if not produtos_freq.empty:
-                            produtos_chart_data = pd.DataFrame({
-                                'Produto': produtos_freq.index,
-                                'Frequencia': produtos_freq.values
-                            })
-                            
-                            produtos_chart = alt.Chart(produtos_chart_data).mark_bar(
-                                color=CORES_MODO_ESCURO[1],
-                                cornerRadiusTopLeft=5,
-                                cornerRadiusTopRight=5
-                            ).encode(
-                                x=alt.X('Frequencia:Q', title='Número de Compras'),
-                                y=alt.Y('Produto:N', sort='-x', title='Produto'),
-                                tooltip=[
-                                    alt.Tooltip('Produto:N', title='Produto'),
-                                    alt.Tooltip('Frequencia:Q', title='Vezes Comprado')
-                                ]
-                            ).properties(
-                                height=400
-                            ).configure(
-                                background='transparent'
-                            )
-                            
-                            st.altair_chart(produtos_chart, use_container_width=True)
+                        col_info1, col_info2, col_info3, col_info4 = st.columns(4)
                         
-                        # Resumo estatístico (CORRIGIDO)
-                        st.markdown("### 📈 Resumo Estatístico")
-                        col_stats1, col_stats2 = st.columns(2)
+                        with col_info1:
+                            total_dias_compras = df_compras_filtered['Data'].nunique()
+                            st.metric("📅 Dias com Compras", total_dias_compras)
                         
-                        with col_stats1:
-                            st.markdown("**💰 Valores:**")
-                            st.write(f"• Maior compra diária: {format_brl(df_compras_filtered.groupby('Data')['VALOR'].sum().max())}")
-                            st.write(f"• Menor compra diária: {format_brl(df_compras_filtered.groupby('Data')['VALOR'].sum().min())}")
-                            st.write(f"• Compra média diária: {format_brl(df_compras_filtered.groupby('Data')['VALOR'].sum().mean())}")
+                        with col_info2:
+                            total_fornecedores = df_compras_filtered['FORNECEDOR'].nunique()
+                            st.metric("🏪 Fornecedores Ativos", total_fornecedores)
                         
-                        with col_stats2:
-                            st.markdown("**📊 Frequências:**")
-                            st.write(f"• Fornecedor mais usado: {gastos_fornecedor.index[0] if not gastos_fornecedor.empty else 'N/A'}")
-                            st.write(f"• Produto mais comprado: {produtos_freq.index[0] if not produtos_freq.empty else 'N/A'}")
-                            st.write(f"• Total de itens únicos: {df_compras_filtered['PRODUTO'].nunique()}")
-                            st.write(f"• Dias com compras: {df_compras_filtered['Data'].nunique()}")
+                        with col_info3:
+                            valor_total_periodo = df_compras_filtered['VALOR'].sum()
+                            st.metric("💰 Total do Período", format_brl(valor_total_periodo))
+                        
+                        with col_info4:
+                            media_diaria = df_compras_filtered.groupby('Data')['VALOR'].sum().mean()
+                            st.metric("📊 Média Diária", format_brl(media_diaria))
+                        
+                        # Tabela resumo por fornecedor
+                        st.markdown("### 🏪 Resumo por Fornecedor")
+                        resumo_fornecedor = df_compras_filtered.groupby('FORNECEDOR')['VALOR'].agg(['sum', 'count', 'mean']).round(2)
+                        resumo_fornecedor.columns = ['Total Gasto (R$)', 'Qtd Compras', 'Média por Compra (R$)']
+                        resumo_fornecedor = resumo_fornecedor.sort_values('Total Gasto (R$)', ascending=False)
+                        
+                        # Formatar valores para exibição
+                        resumo_fornecedor_display = resumo_fornecedor.copy()
+                        resumo_fornecedor_display['Total Gasto (R$)'] = resumo_fornecedor_display['Total Gasto (R$)'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "_").replace(".", ",").replace("_", "."))
+                        resumo_fornecedor_display['Média por Compra (R$)'] = resumo_fornecedor_display['Média por Compra (R$)'].apply(lambda x: f"R$ {x:,.2f}".replace(",", "_").replace(".", ",").replace("_", "."))
+                        
+                        st.dataframe(resumo_fornecedor_display, use_container_width=True, height=300)
+                        
                 else:
                     st.info("📊 Nenhuma compra encontrada para análise no período selecionado.")
             else:

@@ -20,11 +20,11 @@ COMPRAS_WORKSHEET_NAME = 'Compras'
 
 # Lista de fornecedores por categoria
 FORNECEDORES_CATEGORIAS = {
-    "FRIOS": ["PMG Atacadista", "Arena Atacado", "Compra Food Service", "Cojiba", "Dom Juan Distribuidora"],
-    "BEBIDAS": ["PMG Atacadista", "Dom Juan Distribuidora", "Arena Atacado", "Atacadão"],
-    "HAMBURGER": ["PMG Atacadista", "Cojiba", "Compra Food Service", "Arena Atacado"],
-    "SUPERMERCADO": ["Atacadão", "Arena Atacado", "PMG Atacadista", "Dom Juan Distribuidora"],
-    "PAO": ["Dom Juan Distribuidora", "Carone", "PMG Atacadista", "Dom Juan"]
+    "FRIOS": ["MMP FRIOS"],
+    "BEBIDAS": ["PRACA DA BIBLIA"],
+    "HAMBURGER": ["MAX"],
+    "SUPERMERCADO": ["NOVA JERUSALEM", "RAIO"],
+    "PAO": ["DI ROMA"]
 }
 
 # Configuração da página Streamlit

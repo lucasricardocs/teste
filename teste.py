@@ -1145,8 +1145,6 @@ def create_stacked_purchases_by_date_supplier(df_compras, title="Compras por Dat
     
     return stacked_chart
 
-
-
 # --- Funções de Cálculos Financeiros ---
 def calculate_financial_results(df, salario_minimo, custo_contadora, custo_fornecedores_percentual):
     """Calcula os resultados financeiros com base nos dados de vendas seguindo normas contábeis."""
@@ -2228,6 +2226,7 @@ def main():
 
     # --- TAB5: GESTÃO DE COMPRAS COM MÚLTIPLOS PRODUTOS (CORRIGIDA) ---
     # --- TAB5: GESTÃO DE COMPRAS CORRIGIDA ---
+        # --- TAB5: GESTÃO DE COMPRAS CORRIGIDA ---
     with tab5:
         st.header("🛒 Gestão de Compras")
         
@@ -2438,7 +2437,7 @@ def main():
             else:
                 st.warning("⚠️ **Atenção:** Você precisa ter pelo menos um produto válido para registrar a compra")
                 st.info("📝 **Produto válido:** Nome + Categoria/Fornecedor + Quantidade > 0 + Valor > 0")
-    
+
         with subtab2:
             st.subheader("📋 Lista de Compras Registradas")
             
@@ -2456,35 +2455,43 @@ def main():
                     df_compras_filtered = df_compras_filtered[df_compras_filtered['Mês'].isin(selected_meses_filter)]
                 
                 if not df_compras_filtered.empty:
-                    # Exibir métricas resumo
-                    col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
+                    # Verificar se as colunas necessárias existem (CORRIGIDO)
+                    required_columns = ['FORNECEDOR', 'VALOR', 'DataFormatada']
+                    missing_columns = [col for col in required_columns if col not in df_compras_filtered.columns]
                     
-                    with col_metrics1:
-                        total_compras = len(df_compras_filtered)
-                        st.metric("🔢 Total de Compras", total_compras)
-                    
-                    with col_metrics2:
-                        valor_total_compras = df_compras_filtered['Preço'].sum()
-                        st.metric("💰 Valor Total", format_brl(valor_total_compras))
-                    
-                    with col_metrics3:
-                        fornecedores_unicos = df_compras_filtered['Fornecedor'].nunique()
-                        st.metric("🏪 Fornecedores", fornecedores_unicos)
-                    
-                    # Tabela de compras
-                    cols_to_display = ['DataFormatada', 'Produto', 'Preço', 'Fornecedor']
-                    cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
-                    
-                    if cols_existentes:
-                        df_display = df_compras_filtered.sort_values(by='Data', ascending=False)
-                        st.dataframe(df_display[cols_existentes], use_container_width=True, height=400, hide_index=True)
+                    if missing_columns:
+                        st.warning(f"⚠️ Colunas ausentes no DataFrame de compras: {missing_columns}")
+                        st.info("📝 Registre algumas compras primeiro para visualizar as estatísticas.")
                     else:
-                        st.info("Estrutura de dados de compras não está completa.")
+                        # Exibir métricas resumo (CORRIGIDO)
+                        col_metrics1, col_metrics2, col_metrics3 = st.columns(3)
+                        
+                        with col_metrics1:
+                            total_compras = len(df_compras_filtered)
+                            st.metric("🔢 Total de Compras", total_compras)
+                        
+                        with col_metrics2:
+                            valor_total_compras = df_compras_filtered['VALOR'].sum()  # CORRIGIDO: 'VALOR' em vez de 'Preço'
+                            st.metric("💰 Valor Total", format_brl(valor_total_compras))
+                        
+                        with col_metrics3:
+                            fornecedores_unicos = df_compras_filtered['FORNECEDOR'].nunique()
+                            st.metric("🏪 Fornecedores", fornecedores_unicos)
+                        
+                        # Tabela de compras (CORRIGIDO)
+                        cols_to_display = ['DataFormatada', 'PRODUTO', 'QUANTIDADE', 'VALOR', 'FORNECEDOR']
+                        cols_existentes = [col for col in cols_to_display if col in df_compras_filtered.columns]
+                        
+                        if cols_existentes:
+                            df_display = df_compras_filtered.sort_values(by='Data', ascending=False)
+                            st.dataframe(df_display[cols_existentes], use_container_width=True, height=400, hide_index=True)
+                        else:
+                            st.info("Estrutura de dados de compras não está completa.")
                 else:
                     st.info("📊 Nenhuma compra encontrada para o período selecionado.")
             else:
-                st.info("📊 Nenhuma compra registrada ainda. Use a aba 'Registrar Compra' para começar.")
-    
+                st.info("📊 Nenhuma compra registrada ainda. Use a aba 'Registrar Compras' para começar.")
+        
         with subtab3:
             st.subheader("📊 Análise de Compras")
             
@@ -2562,6 +2569,7 @@ def main():
                     st.info("📊 Nenhuma compra encontrada para análise no período selecionado.")
             else:
                 st.info("📊 Registre algumas compras para visualizar as análises.")
+
     
 # --- Ponto de Entrada da Aplicação ---
 if __name__ == "__main__":
